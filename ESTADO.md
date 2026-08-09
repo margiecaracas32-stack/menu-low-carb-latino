@@ -221,3 +221,22 @@ Planificador semanal low carb para mujeres latinas ocupadas que cocinan para su 
 - Causa raíz corregida y aplicada remotamente mediante `20260809160000_preserve_manual_access_audit.sql`: `manual_access_grants.user_id` y `manual_access_events.target_user_id` ahora usan `on delete set null`, conservando correo, motivo, actor y fechas cuando un usuario es eliminado.
 - Cierre técnico: `tsc --noEmit` pasa y `next build` de producción compila correctamente. Resend/SMTP y el flujo conceder→entregar→retirar quedan aprobados.
 - Siguiente servicio externo: Hotmart, empezando por producto/oferta y luego webhook idempotente antes de cualquier venta real.
+
+## Sesion 10 — configuracion inicial de Hotmart (2026-08-09)
+- Cuenta de Hotmart existente confirmada por la propietaria.
+- Producto `Menu Low Carb Latino` registrado como SUSCRIPCION, no como pago unico.
+- Plan mensual creado por la propietaria: USD 6.99/mes, cobro hasta cancelacion y prueba GRATIS de 7 dias.
+- Plan anual creado por la propietaria: USD 69.90/ano, cobro hasta cancelacion y prueba GRATIS de 7 dias. La landing lo comunica como USD 5.83/mes con el total anual visible.
+- Garantia inicial configurada en 7 dias. Se decidio mostrar impuestos incluidos si Hotmart ofrece esa opcion, para evitar sorpresas en checkout.
+- Hotmart Club configurado con el modulo `Empieza aqui` y la clase publicada `Como acceder a Menu Low Carb Latino`; el acceso real se realiza en `https://menu.centrodigitalglobal.online/login`.
+- Pagina de ventas externa conectada a `https://menu.centrodigitalglobal.online/`. Marketplace se mantiene desactivado hasta preparar materiales y operacion de afiliados.
+- Producto aprobado por Hotmart el 2026-08-09, segun confirmacion de la propietaria. Esto no autoriza promocionar ni aceptar ventas reales todavia.
+- Gate pendiente antes de vender: endpoint `/api/webhooks/hotmart` desplegado y certificado con autenticidad HOTTOK, allowlist de producto/ofertas, idempotencia tecnica y economica, maquina de estados, recuperacion de acceso y prueba end-to-end.
+- Implementacion local del webhook completada en `web/app/api/webhooks/hotmart/route.ts` y `web/lib/hotmart-webhook.ts`: raw body, HOTTOK en tiempo constante, version 2.0.0, frescura, catalogo cerrado, dedupe concurrente, ledger economico y estados recuperables.
+- La prueba gratis se distingue del primer cobro: importe 0/estado STARTED -> `trialing`; el primer cobro real -> `active` y `first_paid_at`. Mensual USD 6.99 y anual USD 69.90 se validan en centavos.
+- Cancelacion conserva acceso hasta la proxima fecha de cobro; past_due conserva 5 dias de gracia; refund/chargeback cortan acceso. Eventos viejos no reactivan un estado terminal de la misma suscripcion.
+- El flujo crea o reconcilia la cuenta por subscriber code, subscription id, anon_id y finalmente email; el magic link usa el SMTP Resend ya verificado. Un fallo de email queda `failed` y Hotmart recibe 500 para reintentar.
+- Migracion `20260809200000_hotmart_webhook.sql` aplicada remotamente de forma atomica el 2026-08-09. Auditoria posterior: RPC, estados, ledger, indice economico unico y anon_id = true en 5/5 comprobaciones.
+- Panel administrativo corregido para restar refunds/chargebacks como movimientos separados y no duplicar APPROVED + COMPLETE.
+- Verificacion local: 8/8 pruebas de normalizacion/seguridad pasan, TypeScript pasa, lint sin hallazgos y build Next de produccion compila la ruta dinamica `/api/webhooks/hotmart`.
+- Seguridad de activacion: `HOTMART_WEBHOOK_MODE` queda por defecto en `observe`; no se concede acceso hasta configurar los IDs reales, HOTTOK y certificar el payload sandbox.

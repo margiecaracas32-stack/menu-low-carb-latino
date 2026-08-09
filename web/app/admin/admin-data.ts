@@ -152,7 +152,7 @@ export async function loadAdminDashboard(supabase: SupabaseClient): Promise<Admi
   const [profilesResult, eventsResult, paymentsResult, spendResult, costsResult, aiResult, errorsResult, webhooksResult, manualAccessResult] = await Promise.all([
     readRows(supabase.from("profiles").select("id,status,source,created_at")),
     readRows(supabase.from("event_log").select("user_id,anonymous_session_id,type,source,is_qa,occurred_at").eq("is_qa", false)),
-    readRows(supabase.from("payment_transactions").select("user_id,status,churn_type,billing_cycle,amount_minor,provider_fee_minor,affiliate_fee_minor,tax_minor,refund_minor,settlement_minor,currency,source,occurred_at,reconciled_at")),
+    readRows(supabase.from("payment_transactions").select("user_id,status,churn_type,billing_cycle,economic_kind,amount_minor,provider_fee_minor,affiliate_fee_minor,tax_minor,refund_minor,settlement_minor,currency,source,occurred_at,reconciled_at")),
     readRows(supabase.from("acquisition_spend").select("channel,amount_minor,currency,period_start,period_end")),
     readRows(supabase.from("operating_costs").select("category,amount_minor,currency,period_start,period_end,reconciled_at")),
     readRows(supabase.from("ai_calls").select("user_id,feature,cost_usd,status,created_at")),
@@ -234,7 +234,8 @@ export async function loadAdminDashboard(supabase: SupabaseClient): Promise<Admi
   }
 
   if (paymentsResult.ready) {
-    const paid = payments.filter((row) => row.status === "paid");
+    const paid = payments.filter((row) => row.status === "paid" && row.economic_kind === "sale");
+    const reversals = payments.filter((row) => row.economic_kind === "refund" || row.economic_kind === "chargeback");
     const cancelled = payments.filter((row) => row.status === "cancelled" || row.status === "past_due");
     output.sales.purchases = paid.length;
     output.sales.cancellations = cancelled.length;
@@ -247,7 +248,8 @@ export async function loadAdminDashboard(supabase: SupabaseClient): Promise<Admi
     output.sales.trialToPaid = eventsResult.ready ? ratio(paid.length, eventTrials) : null;
 
     if (oneCurrency) {
-      output.profit.revenue = paid.reduce((sum, row) => sum + number(row.amount_minor) - number(row.refund_minor), 0);
+      output.profit.revenue = paid.reduce((sum, row) => sum + number(row.amount_minor), 0)
+        - reversals.reduce((sum, row) => sum + number(row.refund_minor || row.amount_minor), 0);
       output.sales.mrr = paid.reduce((sum, row) => sum + number(row.amount_minor) / (row.billing_cycle === "annual" ? 12 : 1), 0);
       output.profit.providerFees = paid.every((row) => row.provider_fee_minor != null)
         ? paid.reduce((sum, row) => sum + number(row.provider_fee_minor), 0) : null;
@@ -255,14 +257,17 @@ export async function loadAdminDashboard(supabase: SupabaseClient): Promise<Admi
         ? paid.reduce((sum, row) => sum + number(row.affiliate_fee_minor), 0) : null;
       output.profit.taxes = paid.every((row) => row.tax_minor != null)
         ? paid.reduce((sum, row) => sum + number(row.tax_minor), 0) : null;
-      output.profit.reconciled = paid.length > 0 && paid.every((row) => row.reconciled_at != null);
+      output.profit.reconciled = paid.length > 0 && [...paid, ...reversals].every((row) => row.reconciled_at != null);
     }
 
     const byMonth = new Map<string, number>();
-    for (const row of paymentsResult.rows.filter((entry) => entry.status === "paid")) {
+    for (const row of paymentsResult.rows.filter((entry) => entry.economic_kind === "sale" || entry.economic_kind === "refund" || entry.economic_kind === "chargeback")) {
       const parsed = date(row.occurred_at);
       const key = `${parsed.getUTCFullYear()}-${String(parsed.getUTCMonth() + 1).padStart(2, "0")}`;
-      byMonth.set(key, (byMonth.get(key) ?? 0) + number(row.amount_minor) - number(row.refund_minor));
+      const signedAmount = row.economic_kind === "sale"
+        ? number(row.amount_minor)
+        : -number(row.refund_minor || row.amount_minor);
+      byMonth.set(key, (byMonth.get(key) ?? 0) + signedAmount);
     }
     output.sales.trend = [...byMonth.entries()].sort(([a], [b]) => a.localeCompare(b)).slice(-6).map(([label, value]) => ({ label, value }));
   }
