@@ -210,3 +210,8 @@ Planificador semanal low carb para mujeres latinas ocupadas que cocinan para su 
 - Verificación 2026-08-09: Vercel aceptó el DNS, generó HTTPS y `https://menu.centrodigitalglobal.online` renderiza la landing real.
 - Supabase Auth actualizado: Site URL principal `https://menu.centrodigitalglobal.online`; redirect añadido `https://menu.centrodigitalglobal.online/auth/callback`. Se conservan el callback de Vercel y localhost como respaldo y desarrollo.
 - Próximo paso: crear cuenta gratuita de Resend, verificar el dominio/subdominio de envío mediante registros DNS en Koryfi cPanel y configurar SMTP personalizado en Supabase; después repetir la prueba de acceso manual.
+- Resend conectado el 2026-08-09: cuenta gratuita creada con la cuenta propietaria y dominio `menu.centrodigitalglobal.online` verificado. DNS público confirmado: DKIM TXT, SPF TXT y MX de retorno en `us-east-1`.
+- Se creó una clave Resend restringida a `Sending access` y al dominio verificado; fue transferida directamente a Supabase sin mostrarse en el chat ni guardarse en el repositorio.
+- Supabase Auth usa SMTP personalizado: remitente `acceso@menu.centrodigitalglobal.online`, nombre `Menú Low Carb Latino`, host `smtp.resend.com`, puerto 465 y usuario `resend`. Configuración guardada sin errores.
+- Prueba real desde `https://menu.centrodigitalglobal.online/login`: solicitud de enlace aceptada y correo marcado `Delivered` en Resend. El límite del SMTP de demostración quedó sustituido.
+- Pendiente inmediato: repetir `Dar acceso manual` para `margie.caracas32+prueba@gmail.com`, comprobar el grant/auditoría y retirarlo después.
