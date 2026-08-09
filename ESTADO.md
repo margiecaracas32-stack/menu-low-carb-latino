@@ -215,3 +215,9 @@ Planificador semanal low carb para mujeres latinas ocupadas que cocinan para su 
 - Supabase Auth usa SMTP personalizado: remitente `acceso@menu.centrodigitalglobal.online`, nombre `Menú Low Carb Latino`, host `smtp.resend.com`, puerto 465 y usuario `resend`. Configuración guardada sin errores.
 - Prueba real desde `https://menu.centrodigitalglobal.online/login`: solicitud de enlace aceptada y correo marcado `Delivered` en Resend. El límite del SMTP de demostración quedó sustituido.
 - Pendiente inmediato: repetir `Dar acceso manual` para `margie.caracas32+prueba@gmail.com`, comprobar el grant/auditoría y retirarlo después.
+- Prueba de acceso manual cerrada el 2026-08-09: el panel mostró 1 acceso vigente, Resend entregó el correo al alias propietario, el dueño retiró el acceso y el contador volvió a 0.
+- Limpieza autorizada: la cuenta Auth temporal `margie.caracas32+prueba@gmail.com` fue eliminada; la cuenta propietaria permaneció intacta.
+- Hallazgo de auditoría: las claves foráneas originales usaban `on delete cascade`, por lo que borrar la cuenta temporal eliminó también sus filas de grant/evento. La evidencia de esta prueba permanece en este reporte, pero esas filas de prueba ya no están en la base.
+- Causa raíz corregida y aplicada remotamente mediante `20260809160000_preserve_manual_access_audit.sql`: `manual_access_grants.user_id` y `manual_access_events.target_user_id` ahora usan `on delete set null`, conservando correo, motivo, actor y fechas cuando un usuario es eliminado.
+- Cierre técnico: `tsc --noEmit` pasa y `next build` de producción compila correctamente. Resend/SMTP y el flujo conceder→entregar→retirar quedan aprobados.
+- Siguiente servicio externo: Hotmart, empezando por producto/oferta y luego webhook idempotente antes de cualquier venta real.
