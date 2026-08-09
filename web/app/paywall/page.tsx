@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   ArrowRight,
   CalendarDays,
   Check,
-  Clock3,
   LockKeyhole,
   RefreshCw,
   ShoppingBasket,
@@ -16,8 +16,14 @@ import {
 } from "lucide-react";
 
 type Plan = "annual" | "monthly";
-type CheckoutState = "idle" | "loading" | "preview" | "error";
+type CheckoutState = "idle" | "loading" | "error";
 type SavedAnswers = { people?: string; avoids?: string[]; time?: string };
+
+const CHECKOUT_URLS: Record<Plan, string> = {
+  monthly: "https://pay.hotmart.com/R107087996E?off=2yk1rcvg",
+  annual: "https://pay.hotmart.com/R107087996E?off=1x7js0ul",
+};
+const ANONYMOUS_ID_KEY = "menu-low-carb-anonymous-id-v1";
 
 const benefits = [
   [CalendarDays, "Siete cenas familiares", "Tu semana completa, no recetas sueltas."],
@@ -35,17 +41,26 @@ export default function PaywallPage() {
   const [restoreMessage, setRestoreMessage] = useState("");
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("menu-low-carb-onboarding-v1");
-      if (saved) setAnswers(JSON.parse(saved).answers ?? {});
-    } catch { setAnswers({}); }
-    setOnline(navigator.onLine);
-    setHydrated(true);
+    const hydrationFrame = window.requestAnimationFrame(() => {
+      try {
+        const saved = localStorage.getItem("menu-low-carb-onboarding-v1");
+        if (saved) setAnswers(JSON.parse(saved).answers ?? {});
+      } catch { setAnswers({}); }
+      setOnline(navigator.onLine);
+      setHydrated(true);
+    });
     const onOnline = () => setOnline(true);
     const onOffline = () => setOnline(false);
+    const onPageShow = () => setCheckout("idle");
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
-    return () => { window.removeEventListener("online", onOnline); window.removeEventListener("offline", onOffline); };
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      window.cancelAnimationFrame(hydrationFrame);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+      window.removeEventListener("pageshow", onPageShow);
+    };
   }, []);
 
   const chargeDate = useMemo(() => {
@@ -66,7 +81,19 @@ export default function PaywallPage() {
   function startCheckout() {
     if (!online) { setCheckout("error"); return; }
     setCheckout("loading");
-    window.setTimeout(() => setCheckout("preview"), reduceMotion ? 250 : 850);
+    try {
+      let anonymousId = localStorage.getItem(ANONYMOUS_ID_KEY);
+      if (!anonymousId) {
+        anonymousId = crypto.randomUUID();
+        localStorage.setItem(ANONYMOUS_ID_KEY, anonymousId);
+      }
+      const checkoutUrl = new URL(CHECKOUT_URLS[plan]);
+      checkoutUrl.searchParams.set("src", "menu_low_carb_paywall");
+      checkoutUrl.searchParams.set("sck", anonymousId);
+      window.location.assign(checkoutUrl.toString());
+    } catch {
+      setCheckout("error");
+    }
   }
 
   if (!hydrated) return <main className="paywall-shell paper"><div className="onboarding-boot" role="status"><Utensils/><span>Preparando tus planes…</span></div></main>;
@@ -74,8 +101,8 @@ export default function PaywallPage() {
   return (
     <main className="paywall-shell paper">
       <header className="paywall-nav">
-        <a className="brand" href="/"><span className="brand-mark"><Utensils/></span><span>Menú Low Carb Latino</span></a>
-        <a className="paywall-close" href="/onboarding" aria-label="Cerrar y volver a mi muestra"><X/></a>
+        <Link className="brand" href="/"><span className="brand-mark"><Utensils/></span><span>Menú Low Carb Latino</span></Link>
+        <Link className="paywall-close" href="/onboarding" aria-label="Cerrar y volver a mi muestra"><X/></Link>
       </header>
 
       {!online && <div className="offline-banner" role="status"><WifiOff/> Necesitas conexión para abrir el pago. Tu muestra sigue guardada.</div>}
@@ -123,17 +150,17 @@ export default function PaywallPage() {
             <div><i/><p><strong>{chargeDate} — primer cobro</strong><span>{chargeAmount}. Cancela antes sin costo.</span></p></div>
           </div>
 
-          <a className="not-now" href="/onboarding">Ahora no, volver a mi muestra</a>
+          <Link className="not-now" href="/onboarding">Ahora no, volver a mi muestra</Link>
           <button className="restore-purchase" type="button" onClick={() => setRestoreMessage("Usa el mismo correo de tu compra para recuperar el acceso.")}>Restaurar compra</button>
           {restoreMessage && <p className="restore-message" role="status">{restoreMessage}</p>}
         </motion.aside>
       </section>
 
       <AnimatePresence>
-        {(checkout === "preview" || checkout === "error") && <motion.div className="checkout-overlay" role="dialog" aria-modal="true" aria-labelledby="checkout-title" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        {checkout === "error" && <motion.div className="checkout-overlay" role="dialog" aria-modal="true" aria-labelledby="checkout-title" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <motion.div className="checkout-dialog" initial={{ opacity: 0, y: reduceMotion ? 0 : 18 }} animate={{ opacity: 1, y: 0 }}>
             <button className="dialog-close" onClick={() => setCheckout("idle")} aria-label="Cerrar"><X/></button>
-            {checkout === "error" ? <><span className="dialog-icon error"><WifiOff/></span><h2 id="checkout-title">No pudimos abrir el pago.</h2><p>Comprueba tu conexión. No se realizó ningún cobro y tu plan sigue guardado.</p><button className="checkout-cta" onClick={() => { setOnline(navigator.onLine); startCheckout(); }}>Intentar de nuevo <RefreshCw/></button></> : <><span className="dialog-icon"><Check/></span><h2 id="checkout-title">Así continúa tu prueba.</h2><p>Al publicar, este botón abrirá el checkout de Hotmart con el plan <strong>{plan === "annual" ? "anual" : "mensual"}</strong> seleccionado. Esta demostración no realizó ningún cobro.</p><a className="checkout-cta" href="/login">Ver el acceso después de Hotmart <ArrowRight/></a><button className="text-action" onClick={() => setCheckout("idle")}>Volver a los planes</button></>}
+            <span className="dialog-icon error"><WifiOff/></span><h2 id="checkout-title">No pudimos abrir el pago.</h2><p>Comprueba tu conexión. No se realizó ningún cobro y tu plan sigue guardado.</p><button className="checkout-cta" onClick={() => { setOnline(navigator.onLine); startCheckout(); }}>Intentar de nuevo <RefreshCw/></button>
           </motion.div>
         </motion.div>}
       </AnimatePresence>
