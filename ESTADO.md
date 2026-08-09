@@ -190,3 +190,13 @@ Planificador semanal low carb para mujeres latinas ocupadas que cocinan para su 
 - Pendiente inmediato: identificar el correo de la cuenta propietaria, asignarle `profiles.role = 'admin'`, conectar la clave privada solo en el servidor y probar acceso positivo/negativo.
 - Cuenta propietaria creada/invitada el 2026-08-07 con el correo aprobado por la usuaria y `profiles.role = 'admin'` verificado (1 perfil actualizado). El correo se usa solo para autenticación privada y no se muestra públicamente.
 - Se solicitó además un enlace passwordless desde `/login` para asegurar el flujo PKCE propio de la app. Pendiente que la usuaria abra el correo y complete la sesión; nunca se solicitaron contraseña ni códigos.
+
+## Sesión 9 — publicación y conexión segura (2026-08-09)
+- Repositorio privado publicado en GitHub y proyecto desplegado en Vercel desde la carpeta `web`.
+- Dominio de producción verificado: `https://menu-low-carb-latino.vercel.app`.
+- Variables públicas de Supabase y `SUPABASE_SECRET_KEY` configuradas en Vercel; la clave privada permanece únicamente en el entorno del servidor.
+- Incidente contenido: una clave privada anterior quedó potencialmente expuesta durante la configuración. Se creó `menu_low_carb_latino_vercel`, se activó en Vercel y se revocaron de forma irreversible las dos claves antiguas `menu_low_carb_latino_servidor` y `menu_low_carb_latino_servidor_`. La clave nueva no fue mostrada en el chat ni registrada en el repositorio.
+- Republicación posterior a la rotación completada con estado `Ready` en Vercel.
+- Supabase Auth actualizado: Site URL `https://menu-low-carb-latino.vercel.app`; redirects autorizados para producción y desarrollo en `/auth/callback`.
+- Evidencia externa: landing de producción renderiza el titular principal; `/login` carga con su formulario; una petición sin sesión a `/api/admin/manual-access` devuelve HTTP 403.
+- Pendiente inmediato: completar una entrada passwordless real con el correo propietario y verificar `/admin` con sesión; después probar una concesión manual controlada sin enviar invitaciones a terceros.
