@@ -200,3 +200,5 @@ Planificador semanal low carb para mujeres latinas ocupadas que cocinan para su 
 - Supabase Auth actualizado: Site URL `https://menu-low-carb-latino.vercel.app`; redirects autorizados para producción y desarrollo en `/auth/callback`.
 - Evidencia externa: landing de producción renderiza el titular principal; `/login` carga con su formulario; una petición sin sesión a `/api/admin/manual-access` devuelve HTTP 403.
 - Pendiente inmediato: completar una entrada passwordless real con el correo propietario y verificar `/admin` con sesión; después probar una concesión manual controlada sin enviar invitaciones a terceros.
+- Verificación propietaria completada el 2026-08-09: Supabase registró el inicio de sesión passwordless y la propietaria abrió `/admin` desde Safari móvil. La captura aportada confirma acceso al panel real, navegación Ganancia/Ventas/Usuarios/Errores/IA y estado honesto sin cifras inventadas. El acceso negativo sin sesión continúa respondiendo HTTP 403.
+- Siguiente comprobación: probar `Dar acceso manual` con una cuenta controlada, confirmar la auditoría y retirar después el acceso de prueba.
