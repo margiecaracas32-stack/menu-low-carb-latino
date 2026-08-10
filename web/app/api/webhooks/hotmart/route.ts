@@ -13,6 +13,7 @@ import {
 export const runtime = "nodejs";
 
 const MAX_BODY_BYTES = 256_000;
+const HOTMART_REDELIVERY_WINDOW_MS = 60 * 24 * 60 * 60_000;
 const ACCESS_STATES = new Set(["trialing", "active"]);
 
 function json(message: Record<string, unknown>, status = 200) {
@@ -174,7 +175,11 @@ export async function POST(request: Request) {
     }
 
     const root = payload && typeof payload === "object" ? payload as Record<string, unknown> : {};
-    if (!isFreshHotmartEvent(root.creation_date) && previousWebhook?.status !== "failed") {
+    // Hotmart keeps webhook history for 60 days and lets the owner reprocess a
+    // failed delivery. Event-id and transaction constraints remain the replay
+    // protection, while this window permits legitimate recovery.
+    if (!isFreshHotmartEvent(root.creation_date, Date.now(), HOTMART_REDELIVERY_WINDOW_MS)
+      && previousWebhook?.status !== "failed") {
       await setWebhookStatus(event.eventId, { status: "ignored", processed_at: new Date().toISOString(), last_error_code: "stale_event" });
       return json({ received: true, result: "stale_event" });
     }

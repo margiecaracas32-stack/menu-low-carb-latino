@@ -58,6 +58,26 @@ test("keeps a zero-value trial separate from the first paid charge", () => {
   assert.equal(event.trialEndsAt != null, true);
 });
 
+test("accepts the zero-price shape sent by Hotmart for a real free trial", () => {
+  const payload = purchase();
+  payload.data.purchase.price.value = 0;
+  payload.data.purchase.original_offer_price.value = 0;
+  const event = parseHotmartEvent(payload, catalog);
+  assert.equal(event.membershipStatus, "trialing");
+  assert.equal(event.paymentStatus, "trialing");
+  assert.equal(event.economicKind, null);
+  assert.equal(event.amountMinor, 0);
+});
+
+test("does not let a STARTED status bypass a wrong positive catalog amount", () => {
+  const payload = purchase();
+  payload.data.purchase.price.value = 0;
+  payload.data.purchase.original_offer_price.value = 1;
+  payload.data.purchase.status = "STARTED";
+  payload.data.subscription.status = "STARTED";
+  assert.throws(() => parseHotmartEvent(payload, catalog), /amount_not_allowed/);
+});
+
 test("recognizes the annual plan without turning its full charge into monthly revenue", () => {
   const payload = purchase();
   payload.data.subscription.plan.id = 102;
@@ -118,5 +138,6 @@ test("rejects products, plans, prices and currencies outside the server catalog"
 test("requires fresh, timestamped events", () => {
   assert.equal(isFreshHotmartEvent(now, now), true);
   assert.equal(isFreshHotmartEvent(now - 16 * 60_000, now), false);
+  assert.equal(isFreshHotmartEvent(now - 59 * 86_400_000, now, 60 * 86_400_000), true);
   assert.equal(isFreshHotmartEvent(undefined, now), false);
 });

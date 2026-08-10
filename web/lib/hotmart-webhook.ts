@@ -159,18 +159,25 @@ export function parseHotmartEvent(payload: unknown, catalog: HotmartCatalog): No
   }
 
   const originalAmount = minorUnits(originalPrice.value);
-  const chargedAmount = minorUnits(chargedPrice.value) ?? minorUnits(data.actual_recurrence_value) ?? originalAmount ?? 0;
+  const directChargedAmount = minorUnits(chargedPrice.value) ?? minorUnits(data.actual_recurrence_value);
+  const chargedAmount = directChargedAmount ?? originalAmount ?? 0;
   const originalCurrency = text(originalPrice.currency_value).toUpperCase();
   const currency = (text(chargedPrice.currency_value) || originalCurrency).toUpperCase();
-  const economicEvent = ["PURCHASE_APPROVED", "PURCHASE_COMPLETE", "PURCHASE_REFUNDED", "PURCHASE_CHARGEBACK"].includes(eventType);
-  if (economicEvent && originalAmount !== expectedAmountMinor) throw new Error("amount_not_allowed");
-  if (economicEvent && originalCurrency !== "USD") throw new Error("currency_not_allowed");
-  if (!CURRENCY.test(currency || "USD")) throw new Error("invalid_currency");
-
   const purchaseStatus = text(purchase.status).toUpperCase();
   const subscriptionStatus = text(subscription.status).toUpperCase();
   const trial = eventType === "PURCHASE_APPROVED"
-    && (chargedAmount === 0 || purchaseStatus === "STARTED" || subscriptionStatus === "STARTED");
+    && (directChargedAmount === 0 || purchaseStatus === "STARTED" || subscriptionStatus === "STARTED");
+  const economicEvent = ["PURCHASE_APPROVED", "PURCHASE_COMPLETE", "PURCHASE_REFUNDED", "PURCHASE_CHARGEBACK"].includes(eventType);
+  if (economicEvent && trial) {
+    if (originalAmount != null && originalAmount !== 0 && originalAmount !== expectedAmountMinor) {
+      throw new Error("amount_not_allowed");
+    }
+    if (currency && currency !== "USD") throw new Error("currency_not_allowed");
+  } else if (economicEvent) {
+    if (originalAmount !== expectedAmountMinor) throw new Error("amount_not_allowed");
+    if (originalCurrency !== "USD") throw new Error("currency_not_allowed");
+  }
+  if (!CURRENCY.test(currency || "USD")) throw new Error("invalid_currency");
 
   let membershipStatus: MembershipStatus;
   if (trial) membershipStatus = "trialing";
