@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   ArrowLeft,
@@ -76,21 +77,23 @@ export default function OnboardingPage() {
   const [swapped, setSwapped] = useState<number[]>([]);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setAnswers(parsed.answers ?? EMPTY);
-        setStep(Math.min(Number(parsed.step) || 0, 5));
-      }
-    } catch { localStorage.removeItem(STORAGE_KEY); }
-    setOnline(navigator.onLine);
-    setHydrated(true);
+    const hydrate = window.requestAnimationFrame(() => {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setAnswers(parsed.answers ?? EMPTY);
+          setStep(Math.min(Number(parsed.step) || 0, 5));
+        }
+      } catch { localStorage.removeItem(STORAGE_KEY); }
+      setOnline(navigator.onLine);
+      setHydrated(true);
+    });
     const onOnline = () => setOnline(true);
     const onOffline = () => setOnline(false);
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
-    return () => { window.removeEventListener("online", onOnline); window.removeEventListener("offline", onOffline); };
+    return () => { window.cancelAnimationFrame(hydrate); window.removeEventListener("online", onOnline); window.removeEventListener("offline", onOffline); };
   }, []);
 
   useEffect(() => {
@@ -100,7 +103,6 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (step !== 4 || loadError) return;
-    setLoadIndex(0);
     const updates = [900, 1850, 2850].map((delay, index) => window.setTimeout(() => setLoadIndex(index + 1), delay));
     const finish = window.setTimeout(() => setStep(5), reduceMotion ? 1200 : 3900);
     return () => { updates.forEach(clearTimeout); clearTimeout(finish); };
@@ -140,7 +142,7 @@ export default function OnboardingPage() {
   return (
     <main className="onboarding-shell paper">
       <header className="onboarding-nav">
-        <a className="brand" href="/" aria-label="Volver al inicio"><span className="brand-mark"><Utensils/></span><span>Menú Low Carb Latino</span></a>
+        <Link className="brand" href="/" aria-label="Volver al inicio"><span className="brand-mark"><Utensils/></span><span>Menú Low Carb Latino</span></Link>
         {step < 5 && <span className="save-note"><Check/> Tus respuestas se guardan aquí</span>}
       </header>
 
@@ -175,14 +177,14 @@ export default function OnboardingPage() {
               <p className="kicker">YA HICISTE LO IMPORTANTE</p>
               <h1>No necesitas más disciplina. Necesitas menos decisiones.</h1>
               <p>Con estas tres respuestas podemos preparar una semana que se parezca a tu casa, no a una dieta genérica.</p>
-              <button className="continue-action wide" onClick={() => setStep(4)}>Armar mi semana <Sparkles/></button>
+              <button className="continue-action wide" onClick={() => { setLoadIndex(0); setStep(4); }}>Armar mi semana <Sparkles/></button>
               <button className="text-action" onClick={() => setStep(2)}><ArrowLeft/> Cambiar respuestas</button>
             </motion.section>
           )}
 
           {step === 4 && (
             <motion.section className="loading-card" key="loading" aria-live="polite" aria-busy={!loadError} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              {loadError ? <><span className="question-icon error"><RefreshCw/></span><h1>No pudimos terminar tu plan.</h1><p>Tus respuestas están guardadas.</p><button className="continue-action wide" onClick={() => setLoadError(false)}>Intentar de nuevo <RefreshCw/></button></> : <>
+              {loadError ? <><span className="question-icon error"><RefreshCw/></span><h1>No pudimos terminar tu plan.</h1><p>Tus respuestas están guardadas.</p><button className="continue-action wide" onClick={() => { setLoadIndex(0); setLoadError(false); }}>Intentar de nuevo <RefreshCw/></button></> : <>
                 <div className="recipe-loader"><Utensils/></div>
                 <p className="kicker">CONSTRUYENDO TU PLAN</p>
                 <h1>Tu primera semana está tomando forma.</h1>
@@ -206,7 +208,7 @@ export default function OnboardingPage() {
               </div>
               {swapped.length > 0 && <p className="swap-success" role="status"><Check/> Cambio hecho sin rehacer el resto de tu semana.</p>}
               <div className="shopping-summary"><span><ShoppingBasket/></span><div><small>COMPRA RESUMIDA</small><strong>18 productos, agrupados por pasillos</strong><p>Vegetales, proteínas y despensa, sin duplicados.</p></div></div>
-              <a className="continue-action wide" href="/paywall">Ver mi semana completa <ArrowRight/></a>
+              <Link className="continue-action wide" href="/paywall">Ver mi semana completa <ArrowRight/></Link>
               <button className="text-action" onClick={reset}>Cambiar mis respuestas</button>
             </motion.section>
           )}

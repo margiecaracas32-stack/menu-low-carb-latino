@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent, type ReactNode } from "react";
+import Image from "next/image";
 import {
   AlertTriangle, ArrowDownRight, ArrowRight, Bot, BrainCircuit, CheckCircle2,
   CircleDollarSign, Clock3, CreditCard, DollarSign, ExternalLink, HeartPulse,
@@ -68,7 +69,7 @@ export default function AdminDashboard({ data, initialSection, previewMode = fal
     <div className="admin-shell">
       <aside className={`admin-sidebar ${mobileMenu ? "is-open" : ""}`}>
         <div className="admin-brand">
-          <img src="/brand/isotipo-v2.png" alt=""/>
+          <Image src="/brand/isotipo-v2.png" alt="" width={64} height={64}/>
           <div><strong>Menú Low Carb</strong><span>Centro de control</span></div>
           <button type="button" className="admin-menu-close" onClick={() => setMobileMenu(false)} aria-label="Cerrar menú"><X/></button>
         </div>

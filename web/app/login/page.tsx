@@ -28,16 +28,19 @@ export default function LoginPage() {
   const [countdown, setCountdown] = useState(0);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("verified") === "1") setStatus("verified");
-    if (params.get("access_error") === "1") {
-      setStatus("error");
-      setMessage("El enlace ya no es válido. Solicita uno nuevo para continuar.");
-    }
+    const frame = window.requestAnimationFrame(() => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("verified") === "1") setStatus("verified");
+      if (params.get("access_error") === "1") {
+        setStatus("error");
+        setMessage("El enlace ya no es válido. Solicita uno nuevo para continuar.");
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   useEffect(() => {
-    setOnline(navigator.onLine);
+    const frame = window.requestAnimationFrame(() => setOnline(navigator.onLine));
     const onOnline = () => {
       setOnline(true);
       if (status === "error") {
@@ -49,6 +52,7 @@ export default function LoginPage() {
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
     return () => {
+      window.cancelAnimationFrame(frame);
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
     };
@@ -112,8 +116,8 @@ export default function LoginPage() {
   return (
     <main className="login-shell paper">
       <header className="login-nav">
-        <a className="brand" href="/"><span className="brand-mark"><Utensils/></span><span>Menú Low Carb Latino</span></a>
-        <a className="login-back" href="/paywall"><ArrowLeft/> Volver a los planes</a>
+        <Link className="brand" href="/"><span className="brand-mark"><Utensils/></span><span>Menú Low Carb Latino</span></Link>
+        <Link className="login-back" href="/paywall"><ArrowLeft/> Volver a los planes</Link>
       </header>
 
       {!online && <div className="offline-banner" role="status"><WifiOff/> Estás sin conexión. Tu formulario y tu semana permanecen aquí.</div>}

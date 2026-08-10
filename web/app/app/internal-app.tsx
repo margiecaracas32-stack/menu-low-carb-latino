@@ -1,9 +1,10 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
 import { animate, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform, type Variants } from "motion/react";
 import {
-  ArrowLeft,
   ArrowRight,
   CalendarDays,
   Check,
@@ -14,7 +15,6 @@ import {
   Clock3,
   Heart,
   House,
-  ListChecks,
   Plus,
   RefreshCw,
   Search,
@@ -72,7 +72,7 @@ function ProgressBar({ value, label }: { value: number; label: string }) {
 
 function RecipeVisual({ recipe, compact = false }: { recipe: Recipe; compact?: boolean }) {
   if (recipe.id === "pollo-calabacin") {
-    return <img className="internal-food-photo" src="/images/pollo-calabacin.jpeg" alt="Pollo con calabacín servido en una fuente"/>;
+    return <Image className="internal-food-photo" src="/images/pollo-calabacin.jpeg" alt="Pollo con calabacín servido en una fuente" width={386} height={514}/>;
   }
   return (
     <div className={`internal-plate-art ${compact ? "compact" : ""}`} aria-hidden="true">
@@ -117,37 +117,41 @@ export default function InternalApp({ demoMode }: { demoMode: boolean }) {
   const shoppingCompletion = shoppingItems.length ? Math.round((checkedItems.length / shoppingItems.length) * 100) : 0;
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const requestedTab = params.get("tab") as TabId | null;
-    if (requestedTab && TABS.some((entry) => entry.id === requestedTab)) setTab(requestedTab);
+    let finish = 0;
+    const hydrate = window.requestAnimationFrame(() => {
+      const params = new URLSearchParams(window.location.search);
+      const requestedTab = params.get("tab") as TabId | null;
+      if (requestedTab && TABS.some((entry) => entry.id === requestedTab)) setTab(requestedTab);
 
-    try {
-      const saved = window.localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved) as {
-          todayRecipeId?: string;
-          completedMeals?: string[];
-          checkedItems?: string[];
-          favorites?: string[];
-          extraItems?: ShoppingItem[];
-        };
-        if (parsed.todayRecipeId && recipeById(parsed.todayRecipeId)) setTodayRecipeId(parsed.todayRecipeId);
-        if (Array.isArray(parsed.completedMeals)) setCompletedMeals(parsed.completedMeals);
-        if (Array.isArray(parsed.checkedItems)) setCheckedItems(parsed.checkedItems);
-        if (Array.isArray(parsed.favorites)) setFavorites(parsed.favorites);
-        if (Array.isArray(parsed.extraItems) && parsed.extraItems.length) setShoppingItems([...SHOPPING_ITEMS, ...parsed.extraItems]);
+      try {
+        const saved = window.localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved) as {
+            todayRecipeId?: string;
+            completedMeals?: string[];
+            checkedItems?: string[];
+            favorites?: string[];
+            extraItems?: ShoppingItem[];
+          };
+          if (parsed.todayRecipeId && recipeById(parsed.todayRecipeId)) setTodayRecipeId(parsed.todayRecipeId);
+          if (Array.isArray(parsed.completedMeals)) setCompletedMeals(parsed.completedMeals);
+          if (Array.isArray(parsed.checkedItems)) setCheckedItems(parsed.checkedItems);
+          if (Array.isArray(parsed.favorites)) setFavorites(parsed.favorites);
+          if (Array.isArray(parsed.extraItems) && parsed.extraItems.length) setShoppingItems([...SHOPPING_ITEMS, ...parsed.extraItems]);
+        }
+      } catch {
+        setStorageError(true);
       }
-    } catch {
-      setStorageError(true);
-    }
 
-    setOnline(navigator.onLine);
-    const finish = window.setTimeout(() => setLoading(false), reduceMotion ? 100 : 520);
+      setOnline(navigator.onLine);
+      finish = window.setTimeout(() => setLoading(false), reduceMotion ? 100 : 520);
+    });
     const onOnline = () => setOnline(true);
     const onOffline = () => setOnline(false);
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
     return () => {
+      window.cancelAnimationFrame(hydrate);
       window.clearTimeout(finish);
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
@@ -223,7 +227,7 @@ export default function InternalApp({ demoMode }: { demoMode: boolean }) {
   return (
     <div className="internal-shell paper">
       <header className="internal-header">
-        <a className="internal-brand" href="/" aria-label="Volver a la página principal"><img src="/brand/isotipo-v2.png" alt=""/><span>Menú Low Carb Latino</span></a>
+        <Link className="internal-brand" href="/" aria-label="Volver a la página principal"><Image src="/brand/isotipo-v2.png" alt="" width={64} height={64}/><span>Menú Low Carb Latino</span></Link>
         <button className="internal-avatar" type="button" onClick={() => setMessage("Los ajustes de cuenta se habilitarán al publicar.")} aria-label="Abrir ajustes de cuenta">A</button>
       </header>
 
@@ -331,4 +335,3 @@ function InternalModal({ modal, todayRecipe, newItem, setNewItem, onClose, onSwa
     </motion.section>
   </motion.div>;
 }
-

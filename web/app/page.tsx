@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { motion, useReducedMotion } from "motion/react";
 import {
   ArrowRight,
@@ -59,7 +60,7 @@ function AppPhone({ screen = 0 }: { screen?: number }) {
         <p className="phone-kicker">{current.label} · Método Semana Resuelta</p>
         <h3>{current.title}</h3>
         <div className={`meal-art meal-art-${current.id} ${current.id === "hoy" ? "meal-art-real" : ""}`} aria-hidden="true">
-          {current.id === "hoy" ? <img src="/images/pollo-calabacin.jpeg" alt=""/> : <><span/><i/><b/></>}
+          {current.id === "hoy" ? <Image src="/images/pollo-calabacin.jpeg" alt="" width={386} height={514}/> : <><span/><i/><b/></>}
         </div>
         <p className="phone-meta">{current.meta}</p>
         {current.id === "hoy" && <button className="phone-action">Ver receta <ArrowRight size={15}/></button>}
@@ -96,7 +97,7 @@ export default function Home() {
   return (
     <main>
       <header className="site-nav">
-        <a className="brand" href="#inicio"><img className="brand-logo" src="/brand/isotipo-v2.png" alt=""/><span>Menú Low Carb Latino</span></a>
+        <a className="brand" href="#inicio"><Image className="brand-logo" src="/brand/isotipo-v2.png" alt="" width={64} height={64}/><span>Menú Low Carb Latino</span></a>
         <a className="nav-link" href="#oferta">Ver planes</a>
       </header>
 

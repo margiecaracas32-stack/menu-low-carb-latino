@@ -1,0 +1,42 @@
+{
+  "app": "Menu Low Carb Latino",
+  "audit_date": "2026-08-10",
+  "status": "blocked",
+  "release_commit": null,
+  "production_url": "https://menu.centrodigitalglobal.online",
+  "deployment_provider": "Vercel",
+  "database_project_ref": "enwoecdftalhqzijrguv",
+  "required_server_variables": [
+    "SUPABASE_SECRET_KEY",
+    "HOTMART_HOTTOK",
+    "HOTMART_PRODUCT_ID",
+    "HOTMART_MONTHLY_PLAN_ID",
+    "HOTMART_ANNUAL_PLAN_ID",
+    "HOTMART_WEBHOOK_MODE"
+  ],
+  "required_public_variables": [
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+  ],
+  "migrations": [
+    "20260805200000_auth_foundation.sql",
+    "20260807200000_app_core.sql",
+    "20260808200000_admin_backoffice.sql",
+    "20260809160000_preserve_manual_access_audit.sql",
+    "20260809200000_hotmart_webhook.sql"
+  ],
+  "verified": [
+    "monthly trial activation and cancellation",
+    "passwordless email delivery",
+    "server-side admin authorization",
+    "webhook catalog and idempotency tests",
+    "lint, TypeScript, production build and dependency audit"
+  ],
+  "blockers": [
+    "paid app does not consume onboarding choices",
+    "annual and paid renewal payment cases not certified",
+    "Sentry and client event instrumentation not connected",
+    "privacy export/deletion and professional legal review pending",
+    "real unit economics not measured"
+  ]
+}
