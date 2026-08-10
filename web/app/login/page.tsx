@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   ArrowLeft,
@@ -135,7 +136,7 @@ export default function LoginPage() {
               <p className="kicker">ACCESO VERIFICADO</p>
               <h1>Tu sesión está protegida.</h1>
               <p className="login-intro">Confirmamos tu correo y guardamos la sesión de forma segura. Tu semana estará disponible al entrar al producto.</p>
-              <a className="login-primary" href="/">Volver al inicio <ArrowRight/></a>
+              <Link className="login-primary" href="/app">Entrar a mi menú <ArrowRight/></Link>
             </motion.section>
           ) : status !== "sent" ? (
             <motion.section className="login-card" key="form" initial={{ opacity: 0, y: reduceMotion ? 0 : 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
