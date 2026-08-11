@@ -308,7 +308,7 @@ Planificador semanal low carb para mujeres latinas ocupadas que cocinan para su 
 - Catalogo final verificado localmente: 60 recetas unicas y completas; incluso la combinacion mas restrictiva de tiempo/exclusiones conserva al menos 12 alternativas compatibles. Pruebas de personalizacion 6/6, Hotmart 10/10, TypeScript, ESLint y build de produccion aprobados.
 - Correccion visual posterior solicitada por la propietaria: se retiro el nombre abreviado que aparecia dentro de los platos ilustrados de las tarjetas. Era redundante y se cortaba en celular; el nombre completo permanece una sola vez en el bloque principal de la receta. Verificacion: ninguna ilustracion decorativa expone texto, los 60 titulos siguen presentes y pasan TypeScript, ESLint y 6/6 pruebas de personalizacion.
 
-## Sesion 14 — analitica y observabilidad operativa (2026-08-11, en curso)
+## Sesion 14 — analitica y observabilidad operativa (2026-08-11, cerrada)
 - Decisión: usar `event_log` y `error_log` de Supabase como fuente única inicial. No se conecta todavía PostHog ni Sentry porque no hacen falta para operar con 300-500 usuarios y añadirían cuentas/costos antes de validar la venta.
 - Contrato cerrado de eventos sin datos personales: landing, tres pasos del onboarding, resultado, visibilidad real del paywall, elección de plan, salida/regreso de checkout, apertura/activación/sesión, generación de semana, recetas, cenas, compra, prueba y primer cobro.
 - Seguridad: endpoint de eventos con allowlist, límites de tamaño y frecuencia, comprobación de origen, autenticación obligatoria para acciones internas, propiedades tipadas y deduplicación SHA-256. Correo, nombre y texto libre se descartan.
@@ -318,4 +318,7 @@ Planificador semanal low carb para mujeres latinas ocupadas que cocinan para su 
 - Errores: se añadió un límite autenticado `/api/errors`, registro agrupable y una pantalla segura de recuperación para fallos de la app. La generación/persistencia del menú registra fallos del servidor sin exponer contenido del usuario.
 - Migración `20260811180000_product_analytics.sql` aplicada remotamente el 2026-08-11; Supabase confirmó `Success. No rows returned`. Añade una clave idempotente y los índices de sesión/fecha sin borrar datos existentes.
 - Evidencia técnica: TypeScript, ESLint, 4/4 pruebas nuevas de privacidad/contrato, 6/6 de personalización y 10/10 de Hotmart pasan. `next build --webpack` compila correctamente 16 rutas, incluidos `/api/events` y `/api/errors`.
-- Pendiente inmediato: publicar en GitHub/Vercel, comprobar eventos en producción, capturar el panel móvil y obtener veredicto del revisor visual antes de cerrar esta etapa.
+- Publicación certificada: commit `b44443e`, despliegue Vercel `867fzWsmH9LPt6TtMij1aKbhxaSH` en estado `Ready`, `Production` y `Current` sobre `menu.centrodigitalglobal.online`.
+- Pruebas externas: evento QA válido responde 204; `/api/errors` sin sesión responde 401; `/admin` sin sesión redirige 307 a login; Hotmart conserva `ready=true` y `mode=live`.
+- Evidencia visual móvil: `web/artifacts/admin-funnel-analytics-375.png`. Revisor independiente: APROBAR, usabilidad 37/40 y craft 18/20; sin desbordamiento. Se aplicó su mejora menor de claridad: `Sesiones de prueba excluidas: no medido`.
+- Etapa cerrada. Siguiente etapa propuesta: cierre operativo de lanzamiento y privacidad, incluyendo exportación/borrado, respaldos y revisión final de avisos reales; no exige una nueva compra de prueba.
