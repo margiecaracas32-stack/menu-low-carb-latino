@@ -4,6 +4,29 @@ import { derivePersonalizedPlan, RECIPES, validateAnswers } from "../app/app/rec
 
 const fixedDate = new Date("2026-08-11T12:00:00-04:00");
 
+test("el catálogo vendible contiene sesenta recetas únicas y completas", () => {
+  assert.equal(RECIPES.length, 60);
+  assert.equal(new Set(RECIPES.map((recipe) => recipe.id)).size, 60);
+  for (const recipe of RECIPES) {
+    assert.ok(recipe.title.length >= 8);
+    assert.ok(recipe.description.length >= 20);
+    assert.ok(recipe.ingredients.length >= 4);
+    assert.ok(recipe.steps.length >= 3);
+    assert.ok(recipe.shopping.length >= 4);
+  }
+});
+
+test("cada combinación crítica conserva variedad suficiente", () => {
+  const limits = [20, 30, 45];
+  const exclusions = [[], ["dairy"], ["egg"], ["shellfish"], ["dairy", "egg", "shellfish"]];
+  for (const limit of limits) {
+    for (const excluded of exclusions) {
+      const compatible = RECIPES.filter((recipe) => recipe.minutes <= limit && !recipe.allergens.some((allergen) => excluded.includes(allergen)));
+      assert.ok(compatible.length >= 12, `${limit} minutos y ${excluded.join(",")} solo dejó ${compatible.length} recetas`);
+    }
+  }
+});
+
 test("rechaza respuestas manipuladas", () => {
   assert.equal(validateAnswers({ people: "50 personas", avoids: ["Ninguno"], time: "Hasta 30 min" }), null);
   assert.equal(validateAnswers({ people: "4 personas", avoids: ["Ninguno", "Huevo"], time: "Hasta 30 min" }), null);
@@ -40,4 +63,3 @@ test("la misma entrada produce el mismo plan", () => {
   const answers = { people: "4 personas", avoids: ["Mariscos"], time: "Hasta 45 min" };
   assert.deepEqual(derivePersonalizedPlan(answers, fixedDate), derivePersonalizedPlan(answers, fixedDate));
 });
-

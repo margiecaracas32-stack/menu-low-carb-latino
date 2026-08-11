@@ -23,7 +23,20 @@ declare
     'pollo-calabacin', 'pollo-limon', 'carne-pimientos', 'chuletas-aguacate',
     'pavo-repollo', 'atun-aguacate', 'cerdo-brocoli', 'pollo-aguacate',
     'ropa-vieja', 'pescado-coco', 'picadillo-coliflor', 'pernil-repollo',
-    'tortilla-espinaca', 'albondigas-criollas'
+    'tortilla-espinaca', 'albondigas-criollas', 'bistec-encebollado',
+    'pollo-coco', 'carne-calabacin', 'cerdo-citrico', 'fajitas-pollo',
+    'pavo-calabacin', 'carne-repollo', 'pollo-calabaza', 'salmon-ajo',
+    'pescado-tomate', 'camarones-ajo', 'camarones-coco', 'bacalao-pimientos',
+    'tortitas-atun', 'berenjena-carne', 'pimientos-rellenos', 'lasana-calabacin',
+    'pollo-coliflor', 'cerdo-aguacate', 'carne-brocoli', 'pavo-coliflor',
+    'pollo-espinaca', 'pollo-aceitunas', 'cerdo-tomate', 'carne-tomate',
+    'rollos-repollo', 'albondigas-pavo', 'calabacines-rellenos',
+    'revoltillo-vegetales', 'huevos-tomate', 'coliflor-queso',
+    'espinaca-champinones', 'tofu-criollo', 'champinones-rellenos',
+    'sopa-pollo', 'sopa-carne', 'sopa-cerdo', 'sopa-pescado',
+    'ensalada-pollo-aguacate', 'tacos-pavo-lechuga', 'tacos-carne-lechuga',
+    'rollitos-cerdo-lechuga', 'brochetas-pollo', 'brochetas-carne',
+    'brochetas-cerdo', 'brochetas-pescado'
   ];
 begin
   if v_user_id is null then raise exception 'authentication_required' using errcode = '42501'; end if;
@@ -96,4 +109,3 @@ $$;
 
 revoke all on function public.save_personalized_week(smallint, smallint, text[], date, jsonb, jsonb) from public, anon;
 grant execute on function public.save_personalized_week(smallint, smallint, text[], date, jsonb, jsonb) to authenticated;
-
