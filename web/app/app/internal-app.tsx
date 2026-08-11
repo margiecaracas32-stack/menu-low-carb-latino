@@ -84,12 +84,7 @@ function RecipeVisual({ recipe, compact = false }: { recipe: Recipe; compact?: b
   if (recipe.id === "pollo-calabacin") {
     return <Image className="internal-food-photo" src="/images/pollo-calabacin.jpeg" alt="Pollo con calabacín servido en una fuente" width={386} height={514}/>;
   }
-  return (
-    <div className={`internal-plate-art ${compact ? "compact" : ""}`} aria-hidden="true">
-      <span>{recipe.title.split(" ").slice(0, 2).join(" ")}</span>
-      <i/><b/>
-    </div>
-  );
+  return <div className={`internal-plate-art ${compact ? "compact" : ""}`} aria-hidden="true"/>;
 }
 
 function LoadingView() {
