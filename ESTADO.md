@@ -281,3 +281,11 @@ Planificador semanal low carb para mujeres latinas ocupadas que cocinan para su 
 - Observabilidad tambien incompleta: el panel lee `event_log` y `error_log`, pero las pantallas cliente no registran el funnel y Sentry no esta conectado. Economia real, exportacion/borrado de privacidad, restore/backup y varios casos de pago siguen no medidos/no verificados.
 - Se crearon los seis artefactos obligatorios en `docs/release/` mas `RUNBOOK.md`. Todos distinguen evidencia real de pendientes; `RELEASE-MANIFEST.json` y `PUBLICATION-CERTIFICATE.md` permanecen en estado `blocked` de forma intencional.
 - Siguiente etapa propuesta: construir el nucleo real onboarding -> preferencias persistentes -> semana/lista derivadas -> app, instrumentar eventos/errores y repetir los gates. Los casos de pago que cuestan dinero requieren aprobacion de la propietaria antes de ejecutarse.
+
+## Sesion 12 — correccion global de espaciado en recetas (2026-08-11)
+- La captura de la propietaria revelo que categoria, titulo, duracion y porciones aparecian concatenados en las tarjetas de Recetas, tanto con imagen como con plato editorial.
+- Causa raiz: el JSX habia dejado de asignar las clases compartidas `internal-recipe-card`, `internal-recipe-copy` e `internal-favorite`, mientras el CSS seguia dependiendo de ellas; no era un problema del contenido.
+- Se restauro el contrato entre componente y estilos y se organizo la informacion en tres bloques con 8 px de separacion, tipografia y line-height propios, `min-width: 0` y grid adaptable. Tambien se corrigio el selector visual de filtros para usar su estado accesible `aria-pressed`.
+- QA responsive: 7/7 tarjetas renderizadas, sin solapamientos, sin scroll horizontal y con separacion computada de 8 px a 375 px y escritorio. Evidencias: `web/artifacts/recipe-spacing-375-final.png` y `web/artifacts/recipe-spacing-desktop-final.png`.
+- Revisor visual independiente: APROBAR, usabilidad 39/40 y craft 18/20. La captura final de escritorio se repitio tras terminar el stagger y elimino la semitransparencia temporal observada en la primera evidencia.
+- Verificacion tecnica: TypeScript y ESLint pasan, 10/10 pruebas del webhook Hotmart pasan y `next build` 16.2.11 genera correctamente las 13 rutas.

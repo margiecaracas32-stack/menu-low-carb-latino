@@ -492,7 +492,7 @@
   font-weight: 700;
 }
 
-.internal-filters button[data-active="true"] {
+.internal-filters button[aria-pressed="true"] {
   color: var(--paper);
   background: var(--green);
   border-color: var(--green);
@@ -515,10 +515,17 @@
   box-shadow: var(--shadow-sm);
 }
 
-.internal-recipe-card > button:first-child {
-  display: contents;
+.internal-recipe-open {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
   color: inherit;
   text-align: left;
+  cursor: pointer;
 }
 
 .internal-recipe-card .internal-plate-art,
@@ -528,17 +535,43 @@
 }
 
 .internal-recipe-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
   padding: 16px 48px 16px 16px;
 }
 
-.internal-recipe-copy h2 {
-  margin-top: 4px;
-  font-size: 19px;
+.internal-recipe-copy small,
+.internal-recipe-copy b,
+.internal-recipe-copy em {
+  display: block;
+  min-width: 0;
 }
 
-.internal-recipe-copy p {
-  margin: 6px 0 0;
+.internal-recipe-copy small {
+  color: var(--muted);
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.internal-recipe-copy b {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.internal-recipe-copy em {
+  color: var(--muted);
   font-size: 14px;
+  font-style: normal;
+  line-height: 1.4;
 }
 
 .internal-favorite {
@@ -808,6 +841,10 @@
     grid-template-columns: 1fr;
   }
 
+  .internal-recipe-open {
+    grid-template-columns: 1fr;
+  }
+
   .internal-recipe-card .internal-plate-art,
   .internal-recipe-card .internal-food-photo {
     min-height: 190px;
@@ -856,15 +893,8 @@
     padding: 14px 40px 14px 12px;
   }
 
-  .internal-recipe-copy h2 {
+  .internal-recipe-copy b {
     font-size: 17px;
-  }
-
-  .internal-recipe-copy p {
-    display: -webkit-box;
-    overflow: hidden;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
   }
 }
 
