@@ -223,6 +223,7 @@ function UsersSection({ data, manualAccessConfigured }: { data: AdminDashboardDa
     </section>
     <section className="admin-card admin-funnel-card">
       <SectionTitle eyebrow="DE VISITA A CLIENTE" title="Camino hasta la compra"/>
+      <p className="admin-data-health">Medición limpia · {formatNumber(users.qaSessionsExcluded)} sesiones de prueba excluidas</p>
       {measuredFunnel ? <div className="admin-funnel" role="img" aria-label="Pasos hasta la compra">{users.funnel.map((step, index) => <div key={step.event}><span>{index + 1}</span><div><b>{step.label}</b><i><em style={{ width: `${(step.value ?? 0) / maxFunnel * 100}%` }}/></i></div><strong>{formatNumber(step.value)}</strong></div>)}</div> : <EmptyData title="Camino de compra aún no medido">El registro de actividad separará quién vio la oferta, fue a Hotmart, inició la prueba y confirmó el primer cobro.</EmptyData>}
       <table className="sr-only"><caption>Pasos hasta la compra</caption><thead><tr><th>Paso</th><th>Personas</th></tr></thead><tbody>{users.funnel.map((step) => <tr key={step.event}><th>{step.label}</th><td>{formatNumber(step.value)}</td></tr>)}</tbody></table>
     </section>

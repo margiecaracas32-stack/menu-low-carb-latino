@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { User } from "@supabase/supabase-js";
 import { createSupabaseAdminClient, createSupabaseMailClient } from "@/lib/supabase/admin";
+import { recordProductEvent } from "@/lib/server-observability";
 import {
   isFreshHotmartEvent,
   parseHotmartEvent,
@@ -236,6 +237,23 @@ export async function POST(request: Request) {
     if (decision === "illegal_transition" || decision === "stale_transition") {
       await setWebhookStatus(event.eventId, { status: "illegal", processed_at: new Date().toISOString(), last_error_code: decision });
       return json({ received: true, result: decision });
+    }
+
+    const commercialEvent = event.membershipStatus === "trialing"
+      ? "trial_iniciado"
+      : event.economicKind === "sale" && (!existingSubscription || existingSubscription.status === "trialing")
+        ? "primer_cobro_confirmado"
+        : null;
+    if (commercialEvent) {
+      const { error: analyticsError } = await recordProductEvent({
+        event: commercialEvent,
+        userId: user.id,
+        sessionId: event.anonymousId,
+        source: event.source,
+        isQa: event.source === "qa",
+        idempotencyKey: event.eventId,
+      });
+      if (analyticsError) console.error("Commercial event measurement failed", { event: commercialEvent });
     }
 
     const retryingWelcome = previousWebhook?.last_error_code === "welcome_email_failed";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
@@ -17,6 +17,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { derivePersonalizedPlan, RECIPES, validateAnswers } from "../app/recipe-catalog";
+import { track } from "../../lib/analytics";
 
 type Answers = { people: string; avoids: string[]; time: string };
 const EMPTY: Answers = { people: "", avoids: [], time: "" };
@@ -58,6 +59,10 @@ export default function OnboardingPage() {
   const [loadIndex, setLoadIndex] = useState(0);
   const [loadError, setLoadError] = useState(false);
   const [swapped, setSwapped] = useState<number[]>([]);
+  const stepStartedAt = useRef<number | null>(null);
+  const latestStep = useRef(step);
+
+  useEffect(() => { latestStep.current = step; }, [step]);
 
   useEffect(() => {
     const hydrate = window.requestAnimationFrame(() => {
@@ -83,6 +88,19 @@ export default function OnboardingPage() {
     if (!hydrated) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ answers, step }));
   }, [answers, step, hydrated]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    track("onboarding_iniciado", {}, "onboarding-started");
+    const startedAt = Date.now();
+    stepStartedAt.current = startedAt;
+    const onPageHide = () => {
+      const currentStep = latestStep.current;
+      if (currentStep < 5) track("onboarding_abandonado", { paso: Math.min(currentStep + 1, 5) }, `onboarding-abandoned:${currentStep + 1}`);
+    };
+    window.addEventListener("pagehide", onPageHide);
+    return () => window.removeEventListener("pagehide", onPageHide);
+  }, [hydrated]);
 
   useEffect(() => {
     if (step !== 4 || loadError) return;
@@ -123,10 +141,31 @@ export default function OnboardingPage() {
     } else setAnswers((old) => ({ ...old, [current.key]: option }));
   }
 
+  function continueStep() {
+    const completedStep = step + 1;
+    const startedAt = stepStartedAt.current;
+    track("onboarding_paso_completado", {
+      paso: completedStep,
+      total_pasos: 3,
+      duracion_ms: startedAt == null ? 0 : Date.now() - startedAt,
+    }, `onboarding-step:${completedStep}`);
+    stepStartedAt.current = Date.now();
+    setStep(completedStep);
+  }
+
   function reset() {
     setAnswers(EMPTY); setStep(0); setSwapped([]); setLoadError(false);
     localStorage.removeItem(STORAGE_KEY);
   }
+
+  useEffect(() => {
+    if (!hydrated || step !== 5) return;
+    track("onboarding_completado", { pasos_saltados: 0 }, "onboarding-completed");
+    track("resultado_visto", {
+      recetas_mostradas: previewMeals.length,
+      productos_compra: previewPlan.shoppingItems.length,
+    }, "onboarding-result");
+  }, [hydrated, previewMeals.length, previewPlan.shoppingItems.length, step]);
 
   if (!hydrated) {
     return <main className="onboarding-shell paper"><div className="onboarding-boot" role="status"><Utensils/><span>Preparando tus preferencias…</span></div></main>;
@@ -159,7 +198,7 @@ export default function OnboardingPage() {
               </div>
               <div className="onboarding-actions">
                 <button className="back-action" type="button" onClick={() => step === 0 ? location.assign("/") : setStep(step - 1)}><ArrowLeft/> Atrás</button>
-                <button className="continue-action" type="button" disabled={!selected} onClick={() => setStep(step + 1)}>Continuar <ArrowRight/></button>
+                <button className="continue-action" type="button" disabled={!selected} onClick={continueStep}>Continuar <ArrowRight/></button>
               </div>
             </motion.section>
           )}

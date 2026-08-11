@@ -18,6 +18,7 @@ import {
   Utensils,
   WalletCards,
 } from "lucide-react";
+import { track } from "../lib/analytics";
 
 const screens = [
   { id: "hoy", label: "Hoy", title: "Pollo guisado con calabacín", meta: "25 min · rinde 4" },
@@ -83,7 +84,9 @@ export default function Home() {
     const params = new URLSearchParams(window.location.search);
     if (params.has("code")) {
       window.location.replace(`/auth/callback?${params.toString()}`);
+      return;
     }
+    track("landing_vista", {}, "landing");
   }, []);
 
   useEffect(() => {

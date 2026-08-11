@@ -18,5 +18,5 @@ export default async function AppPage() {
   }
 
   const initialData = user ? await loadPersonalizedAppData(supabase, user.id) : null;
-  return <InternalApp demoMode={!user} userId={user?.id} initialData={initialData} />;
+  return <InternalApp demoMode={!user} userId={user?.id} userCreatedAt={user?.created_at} initialData={initialData} />;
 }

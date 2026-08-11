@@ -1,7 +1,7 @@
 # ESTADO — Menú Low Carb Latino
-Última actualización: 2026-08-07 | Sesión actual: 7
+Última actualización: 2026-08-11 | Sesión actual: 14
 
-⏸️ CHECKPOINT — Última acción completada: app interna construida y verificada técnicamente / Siguiente acción exacta: validación visual del usuario y, tras su aprobación, conexión de GitHub y Vercel
+🔧 CHECKPOINT — Última acción completada: analítica de producto y observabilidad compiladas con migración remota aplicada / Siguiente acción exacta: publicar, verificar eventos reales y cerrar revisión visual del panel
 
 ## Qué es esta app
 ## Seguimiento de acceso administrador (2026-08-07)
@@ -307,3 +307,15 @@ Planificador semanal low carb para mujeres latinas ocupadas que cocinan para su 
 - Verificacion externa posterior: una invocacion anonima a `save_personalized_week` responde HTTP 401. Esto confirma que la funcion existe en produccion y que un visitante sin sesion no puede ejecutarla.
 - Catalogo final verificado localmente: 60 recetas unicas y completas; incluso la combinacion mas restrictiva de tiempo/exclusiones conserva al menos 12 alternativas compatibles. Pruebas de personalizacion 6/6, Hotmart 10/10, TypeScript, ESLint y build de produccion aprobados.
 - Correccion visual posterior solicitada por la propietaria: se retiro el nombre abreviado que aparecia dentro de los platos ilustrados de las tarjetas. Era redundante y se cortaba en celular; el nombre completo permanece una sola vez en el bloque principal de la receta. Verificacion: ninguna ilustracion decorativa expone texto, los 60 titulos siguen presentes y pasan TypeScript, ESLint y 6/6 pruebas de personalizacion.
+
+## Sesion 14 — analitica y observabilidad operativa (2026-08-11, en curso)
+- Decisión: usar `event_log` y `error_log` de Supabase como fuente única inicial. No se conecta todavía PostHog ni Sentry porque no hacen falta para operar con 300-500 usuarios y añadirían cuentas/costos antes de validar la venta.
+- Contrato cerrado de eventos sin datos personales: landing, tres pasos del onboarding, resultado, visibilidad real del paywall, elección de plan, salida/regreso de checkout, apertura/activación/sesión, generación de semana, recetas, cenas, compra, prueba y primer cobro.
+- Seguridad: endpoint de eventos con allowlist, límites de tamaño y frecuencia, comprobación de origen, autenticación obligatoria para acciones internas, propiedades tipadas y deduplicación SHA-256. Correo, nombre y texto libre se descartan.
+- Embudo comercial completo: landing → onboarding → pasos 1/2/3 → resultado → paywall visible al 35% → Hotmart → prueba confirmada en servidor → primer cobro confirmado en servidor.
+- Hotmart registra `trial_iniciado` y `primer_cobro_confirmado` después de aplicar el evento válido; los reintentos no duplican cifras. La analítica nunca bloquea el pago ni el acceso.
+- Sesiones QA: `?qa=1` marca toda la sesión; el panel excluye todos sus eventos y los pagos cuyo origen es `qa`. Muestra además cuántas sesiones de prueba fueron retiradas de los cálculos.
+- Errores: se añadió un límite autenticado `/api/errors`, registro agrupable y una pantalla segura de recuperación para fallos de la app. La generación/persistencia del menú registra fallos del servidor sin exponer contenido del usuario.
+- Migración `20260811180000_product_analytics.sql` aplicada remotamente el 2026-08-11; Supabase confirmó `Success. No rows returned`. Añade una clave idempotente y los índices de sesión/fecha sin borrar datos existentes.
+- Evidencia técnica: TypeScript, ESLint, 4/4 pruebas nuevas de privacidad/contrato, 6/6 de personalización y 10/10 de Hotmart pasan. `next build --webpack` compila correctamente 16 rutas, incluidos `/api/events` y `/api/errors`.
+- Pendiente inmediato: publicar en GitHub/Vercel, comprobar eventos en producción, capturar el panel móvil y obtener veredicto del revisor visual antes de cerrar esta etapa.

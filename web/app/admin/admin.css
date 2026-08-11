@@ -426,6 +426,8 @@
 .admin-shell button:focus-visible,
 .admin-shell a:focus-visible { outline: 3px solid rgb(230 184 75 / 78%); outline-offset: 2px; }
 
+.admin-data-health { margin: -8px 0 18px; color: var(--admin-muted); font-size: 13px; }
+
 @media (hover: hover) {
   .admin-sidebar nav button:hover:not([aria-current="page"]) { color: #fffaf2; background: rgb(255 250 242 / 6%); }
   .admin-back-link:hover { color: var(--admin-navy); }

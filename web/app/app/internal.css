@@ -914,6 +914,47 @@
   outline-offset: 2px;
 }
 
+.internal-fatal {
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  justify-items: start;
+  gap: 16px;
+  padding: 32px max(24px, calc((100vw - 560px) / 2));
+  color: var(--ink);
+  background: var(--paper);
+}
+
+.internal-fatal > span {
+  color: var(--coral-aa);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.internal-fatal h2 {
+  margin: 0;
+  max-width: 520px;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(32px, 6vw, 54px);
+  line-height: 1;
+}
+
+.internal-fatal p { margin: 0; max-width: 480px; color: var(--muted); line-height: 1.6; }
+
+.internal-fatal button {
+  min-height: 48px;
+  padding: 0 22px;
+  color: #fffdf7;
+  background: var(--green);
+  border: 0;
+  border-radius: 16px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .internal-shell *,
   .internal-shell *::before,

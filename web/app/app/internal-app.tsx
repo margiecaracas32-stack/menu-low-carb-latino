@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { buildDemoPlan, RECIPES, type Recipe, type ShoppingItem, type WeekMeal } from "./recipe-catalog";
 import type { PersonalizedAppData } from "../../lib/personalized-app";
+import { reportProductError, track, trackDaily } from "../../lib/analytics";
 
 type TabId = "today" | "week" | "shopping" | "recipes";
 type FilterId = "Todas" | "Familia" | "Rápida" | "Favoritas";
@@ -98,7 +99,7 @@ function LoadingView() {
   );
 }
 
-export default function InternalApp({ demoMode, userId, initialData }: { demoMode: boolean; userId?: string; initialData: PersonalizedAppData | null }) {
+export default function InternalApp({ demoMode, userId, userCreatedAt, initialData }: { demoMode: boolean; userId?: string; userCreatedAt?: string; initialData: PersonalizedAppData | null }) {
   const reduceMotion = useReducedMotion();
   const householdSize = initialData?.householdSize ?? DEMO_PLAN.householdSize;
   const recipes = useMemo(() => RECIPES.map((recipe) => ({ ...recipe, servings: householdSize, ingredients: recipe.ingredients.map((item) => scaleIngredient(item, householdSize)) })), [householdSize]);
@@ -144,7 +145,10 @@ export default function InternalApp({ demoMode, userId, initialData }: { demoMod
         if (response.status === 400) { if (!cancelled) setPersonalizationState("missing"); return; }
         if (!response.ok) throw new Error("personalization_failed");
         if (!cancelled) window.location.reload();
-      } catch { if (!cancelled) setPersonalizationState("error"); }
+      } catch (error) {
+        if (userId) reportProductError(error instanceof Error ? error : new Error("personalization_failed"), "personalization_sync", "/app");
+        if (!cancelled) setPersonalizationState("error");
+      }
     }
     void synchronize();
     return () => { cancelled = true; };
@@ -205,6 +209,15 @@ export default function InternalApp({ demoMode, userId, initialData }: { demoMod
   }, [message]);
 
   useEffect(() => {
+    if (loading || demoMode || !userId) return;
+    const created = userCreatedAt ? new Date(userCreatedAt) : new Date();
+    const daysSinceSignup = Math.max(0, Math.floor((Date.now() - created.getTime()) / 86_400_000));
+    track("app_abierta", { plan: "unknown" }, `app-opened:${userId}`);
+    trackDaily(userId, daysSinceSignup, "unknown");
+    if (initialData) track("aha_alcanzado", { plan: "unknown" }, `aha:${userId}`);
+  }, [demoMode, initialData, loading, userCreatedAt, userId]);
+
+  useEffect(() => {
     const close = (event: KeyboardEvent) => { if (event.key === "Escape") setModal(null); };
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
@@ -223,18 +236,29 @@ export default function InternalApp({ demoMode, userId, initialData }: { demoMod
   function toggleTodayComplete() {
     const completed = completedMeals.includes(todayRecipe.id);
     setCompletedMeals((current) => completed ? current.filter((id) => id !== todayRecipe.id) : [...new Set([...current, todayRecipe.id])]);
+    if (!completed && !demoMode) track("cena_completada", { recipe_id: todayRecipe.id, plan: "unknown" }, `dinner:${currentIso}:${todayRecipe.id}`);
     setMessage(completed ? "La cena volvió a quedar pendiente." : "Cena marcada. Tu semana avanza.");
   }
 
   function chooseSwap(recipe: Recipe) {
+    const previousRecipeId = todayRecipe.id;
     setTodayRecipeId(recipe.id);
+    if (!demoMode) track("cena_sustituida", { receta_anterior: previousRecipeId, receta_nueva: recipe.id, plan: "unknown" });
     setModal(null);
     setMessage(`Cena cambiada por ${recipe.title}.`);
   }
 
   function toggleShoppingItem(itemId: string) {
     setCheckedItems((current) => current.includes(itemId) ? current.filter((id) => id !== itemId) : [...current, itemId]);
-    if (!checkedItems.includes(itemId) && checkedItems.length + 1 === shoppingItems.length) setMessage("Compra completa. La semana está abastecida.");
+    if (!checkedItems.includes(itemId) && checkedItems.length + 1 === shoppingItems.length) {
+      if (!demoMode) track("compra_completada", { productos: shoppingItems.length, plan: "unknown" }, `shopping:${week[0].date}`);
+      setMessage("Compra completa. La semana está abastecida.");
+    }
+  }
+
+  function openRecipe(recipe: Recipe) {
+    if (!demoMode) track("receta_vista", { recipe_id: recipe.id, plan: "unknown" });
+    setModal({ type: "recipe", recipe });
   }
 
   function addShoppingItem(event: FormEvent) {
@@ -276,10 +300,10 @@ export default function InternalApp({ demoMode, userId, initialData }: { demoMod
         {loading ? <LoadingView/> : (
           <AnimatePresence mode="wait">
             <motion.div key={tab} className="internal-content" variants={listVariants} initial="hidden" animate="visible" exit={{ opacity: 0, y: reduceMotion ? 0 : -8 }} transition={{ duration: 0.22, ease: EASE }}>
-              {tab === "today" && <TodayView recipe={todayRecipe} dateLabel={dateLabel} completion={completion} completed={completedMeals.includes(todayRecipe.id)} onRecipe={() => setModal({ type: "recipe", recipe: todayRecipe })} onSwap={() => setModal({ type: "swap" })} onComplete={toggleTodayComplete}/>}
-              {tab === "week" && <WeekView week={week} rangeLabel={rangeLabel} selectedDay={selectedDay} onSelectDay={setSelectedDay} selectedRecipe={selectedRecipe} completion={completion} onToday={() => changeTab("today")} onRecipe={() => setModal({ type: "recipe", recipe: selectedRecipe })}/>}
+              {tab === "today" && <TodayView recipe={todayRecipe} dateLabel={dateLabel} completion={completion} completed={completedMeals.includes(todayRecipe.id)} onRecipe={() => openRecipe(todayRecipe)} onSwap={() => setModal({ type: "swap" })} onComplete={toggleTodayComplete}/>}
+              {tab === "week" && <WeekView week={week} rangeLabel={rangeLabel} selectedDay={selectedDay} onSelectDay={setSelectedDay} selectedRecipe={selectedRecipe} completion={completion} onToday={() => changeTab("today")} onRecipe={() => openRecipe(selectedRecipe)}/>}
               {tab === "shopping" && <ShoppingView items={shoppingItems} checkedItems={checkedItems} progress={shoppingCompletion} onToggle={toggleShoppingItem} onAdd={() => setModal({ type: "add-item" })}/>}
-              {tab === "recipes" && <RecipesView recipes={filteredRecipes} favorites={favorites} filter={filter} search={search} onFilter={setFilter} onSearch={setSearch} onFavorite={toggleFavorite} onRecipe={(recipe) => setModal({ type: "recipe", recipe })}/>}
+              {tab === "recipes" && <RecipesView recipes={filteredRecipes} favorites={favorites} filter={filter} search={search} onFilter={setFilter} onSearch={setSearch} onFavorite={toggleFavorite} onRecipe={openRecipe}/>}
             </motion.div>
           </AnimatePresence>
         )}

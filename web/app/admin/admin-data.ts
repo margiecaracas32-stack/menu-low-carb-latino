@@ -56,6 +56,7 @@ export type AdminDashboardData = {
     retentionD7: number | null;
     retentionD30: number | null;
     coreActions: number | null;
+    qaSessionsExcluded: number | null;
     funnel: FunnelStep[];
     manualAccess: Array<{
       id: string;
@@ -84,14 +85,17 @@ export type AdminDashboardData = {
   };
 };
 
-const FUNNEL: Array<[string, string]> = [
-  ["landing_vista", "Visitó la página"],
-  ["onboarding_iniciado", "Comenzó el onboarding"],
-  ["resultado_visto", "Vio su menú"],
-  ["paywall_visto", "Vio la oferta"],
-  ["checkout_iniciado", "Fue al pago"],
-  ["trial_iniciado", "Inició la prueba"],
-  ["primer_cobro_confirmado", "Primer cobro"],
+const FUNNEL: Array<{ key: string; type: string; label: string; step?: number }> = [
+  { key: "landing_vista", type: "landing_vista", label: "Visitó la página" },
+  { key: "onboarding_iniciado", type: "onboarding_iniciado", label: "Comenzó el onboarding" },
+  { key: "onboarding_paso_1", type: "onboarding_paso_completado", step: 1, label: "Indicó su hogar" },
+  { key: "onboarding_paso_2", type: "onboarding_paso_completado", step: 2, label: "Indicó sus preferencias" },
+  { key: "onboarding_paso_3", type: "onboarding_paso_completado", step: 3, label: "Definió su tiempo" },
+  { key: "resultado_visto", type: "resultado_visto", label: "Vio su menú" },
+  { key: "paywall_visto", type: "paywall_visto", label: "Vio la oferta" },
+  { key: "checkout_iniciado", type: "checkout_iniciado", label: "Fue al pago" },
+  { key: "trial_iniciado", type: "trial_iniciado", label: "Inició la prueba" },
+  { key: "primer_cobro_confirmado", type: "primer_cobro_confirmado", label: "Primer cobro" },
 ];
 
 const emptyData = (): AdminDashboardData => ({
@@ -116,7 +120,8 @@ const emptyData = (): AdminDashboardData => ({
   users: {
     total: null, activeToday: null, active7d: null, active30d: null, activation: null,
     retentionD1: null, retentionD7: null, retentionD30: null, coreActions: null,
-    funnel: FUNNEL.map(([event, label]) => ({ event, label, value: null })),
+    qaSessionsExcluded: null,
+    funnel: FUNNEL.map(({ key, label }) => ({ event: key, label, value: null })),
     manualAccess: [],
   },
   errors: { open: null, affectedUsers: null, webhookFailures: null, lastWebhookAt: null, groups: [] },
@@ -151,7 +156,7 @@ export async function loadAdminDashboard(supabase: SupabaseClient): Promise<Admi
 
   const [profilesResult, eventsResult, paymentsResult, spendResult, costsResult, aiResult, errorsResult, webhooksResult, manualAccessResult] = await Promise.all([
     readRows(supabase.from("profiles").select("id,status,source,created_at")),
-    readRows(supabase.from("event_log").select("user_id,anonymous_session_id,type,source,is_qa,occurred_at").eq("is_qa", false)),
+    readRows(supabase.from("event_log").select("user_id,anonymous_session_id,type,source,is_qa,metadata,occurred_at")),
     readRows(supabase.from("payment_transactions").select("user_id,status,churn_type,billing_cycle,economic_kind,amount_minor,provider_fee_minor,affiliate_fee_minor,tax_minor,refund_minor,settlement_minor,currency,source,occurred_at,reconciled_at")),
     readRows(supabase.from("acquisition_spend").select("channel,amount_minor,currency,period_start,period_end")),
     readRows(supabase.from("operating_costs").select("category,amount_minor,currency,period_start,period_end,reconciled_at")),
@@ -165,8 +170,13 @@ export async function loadAdminDashboard(supabase: SupabaseClient): Promise<Admi
   output.sourceReady = readiness.every((entry) => entry.ready);
 
   const profiles = profilesResult.rows;
-  const events = eventsResult.rows;
-  const payments = paymentsResult.rows.filter((row) => within(row.occurred_at, monthStart));
+  const qaSessions = new Set(eventsResult.rows
+    .filter((row) => row.is_qa === true && row.anonymous_session_id)
+    .map((row) => String(row.anonymous_session_id)));
+  const events = eventsResult.rows.filter((row) => row.is_qa !== true
+    && (!row.anonymous_session_id || !qaSessions.has(String(row.anonymous_session_id))));
+  output.users.qaSessionsExcluded = eventsResult.ready ? qaSessions.size : null;
+  const payments = paymentsResult.rows.filter((row) => row.source !== "qa" && within(row.occurred_at, monthStart));
   const acquisition = spendResult.rows.filter((row) => date(row.period_end) >= monthStart);
   const costs = costsResult.rows.filter((row) => date(row.period_end) >= monthStart);
   const aiCalls = aiResult.rows.filter((row) => within(row.created_at, monthStart));
@@ -210,10 +220,15 @@ export async function loadAdminDashboard(supabase: SupabaseClient): Promise<Admi
     const opened = unique(events.filter((row) => row.type === "app_abierta").map(eventKey));
     const activated = unique(events.filter((row) => row.type === "aha_alcanzado").map(eventKey));
     output.users.activation = ratio(activated, opened);
-    output.users.funnel = FUNNEL.map(([event, label]) => ({
-      event,
+    output.users.funnel = FUNNEL.map(({ key, type, label, step }) => ({
+      event: key,
       label,
-      value: unique(events.filter((row) => row.type === event).map(eventKey)),
+      value: unique(events.filter((row) => {
+        if (row.type !== type) return false;
+        if (step == null) return true;
+        const metadata = row.metadata && typeof row.metadata === "object" ? row.metadata as Row : {};
+        return number(metadata.paso) === step;
+      }).map(eventKey)),
     }));
 
     const profileCreated = new Map(profiles.map((row) => [String(row.id), date(row.created_at)]));

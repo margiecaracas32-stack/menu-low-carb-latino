@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateAnswers } from "../../../app/recipe-catalog";
 import { createSupabaseServerClient } from "../../../../lib/supabase/server";
 import { loadSavedAnswers, savePersonalizedAppData } from "../../../../lib/personalized-app";
+import { recordProductError, recordProductEvent } from "../../../../lib/server-observability";
 
 export async function POST(request: NextRequest) {
   const origin = request.headers.get("origin");
@@ -26,8 +27,23 @@ export async function POST(request: NextRequest) {
 
   if (error || !planId) {
     console.error("personalize_week_failed", { code: error?.code, userId: user.id });
+    await recordProductError({
+      userId: user.id,
+      message: error?.code ? `personalize_week_failed:${error.code}` : "personalize_week_failed",
+      context: "personalize_week",
+      route: "/api/app/personalize",
+    });
     return NextResponse.json({ error: "No pudimos guardar tu semana. Inténtalo de nuevo." }, { status: 500 });
   }
+
+  const people = answers.people === "5 o más" ? 5 : Number(answers.people.split(" ")[0]);
+  const minutes = Number(answers.time.match(/\d+/)?.[0] ?? 30);
+  await recordProductEvent({
+    event: "menu_semanal_generado",
+    userId: user.id,
+    properties: { personas: people, tiempo_max: minutes, recetas: 7, plan: "unknown" },
+    idempotencyKey: `weekly-plan:${planId}`,
+  });
 
   return NextResponse.json({ ok: true, planId });
 }

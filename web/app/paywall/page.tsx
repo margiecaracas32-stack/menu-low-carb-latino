@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
@@ -14,6 +14,7 @@ import {
   WifiOff,
   X,
 } from "lucide-react";
+import { currentAnalyticsSource, isAnalyticsQaSession, track } from "../../lib/analytics";
 
 type Plan = "annual" | "monthly";
 type CheckoutState = "idle" | "loading" | "error";
@@ -24,6 +25,7 @@ const CHECKOUT_URLS: Record<Plan, string> = {
   annual: "https://pay.hotmart.com/R107087996E?off=1x7js0ul",
 };
 const ANONYMOUS_ID_KEY = "menu-low-carb-anonymous-id-v1";
+const CHECKOUT_ATTEMPT_KEY = "menu-low-carb-checkout-attempt-v1";
 
 const benefits = [
   [CalendarDays, "Siete cenas familiares", "Tu semana completa, no recetas sueltas."],
@@ -39,6 +41,7 @@ export default function PaywallPage() {
   const [online, setOnline] = useState(true);
   const [checkout, setCheckout] = useState<CheckoutState>("idle");
   const [restoreMessage, setRestoreMessage] = useState("");
+  const offerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const hydrationFrame = window.requestAnimationFrame(() => {
@@ -51,7 +54,18 @@ export default function PaywallPage() {
     });
     const onOnline = () => setOnline(true);
     const onOffline = () => setOnline(false);
-    const onPageShow = () => setCheckout("idle");
+    const onPageShow = () => {
+      setCheckout("idle");
+      const saved = sessionStorage.getItem(CHECKOUT_ATTEMPT_KEY);
+      if (!saved) return;
+      try {
+        const attempt = JSON.parse(saved) as { plan?: Plan; startedAt?: number };
+        if (attempt.plan && Number(attempt.startedAt) > Date.now() - 2 * 60 * 60 * 1000) {
+          track("checkout_regresado", { plan_elegido: attempt.plan }, `checkout-returned:${attempt.startedAt}`);
+        }
+      } catch { /* Invalid local state is ignored. */ }
+      sessionStorage.removeItem(CHECKOUT_ATTEMPT_KEY);
+    };
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
     window.addEventListener("pageshow", onPageShow);
@@ -62,6 +76,20 @@ export default function PaywallPage() {
       window.removeEventListener("pageshow", onPageShow);
     };
   }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    track("paywall_renderizado", { plan_elegido: plan }, "paywall-rendered");
+    const node = offerRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry?.isIntersecting) return;
+      track("paywall_visto", { plan_elegido: plan }, "paywall-viewed");
+      observer.disconnect();
+    }, { threshold: 0.35 });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hydrated, plan]);
 
   const chargeDate = useMemo(() => {
     const date = new Date();
@@ -88,8 +116,12 @@ export default function PaywallPage() {
         localStorage.setItem(ANONYMOUS_ID_KEY, anonymousId);
       }
       const checkoutUrl = new URL(CHECKOUT_URLS[plan]);
-      checkoutUrl.searchParams.set("src", "menu_low_carb_paywall");
+      const source = isAnalyticsQaSession() ? "qa" : currentAnalyticsSource();
+      checkoutUrl.searchParams.set("src", source);
       checkoutUrl.searchParams.set("sck", anonymousId);
+      const startedAt = Date.now();
+      sessionStorage.setItem(CHECKOUT_ATTEMPT_KEY, JSON.stringify({ plan, startedAt }));
+      track("checkout_iniciado", { plan_elegido: plan }, `checkout:${startedAt}`);
       window.location.assign(checkoutUrl.toString());
     } catch {
       setCheckout("error");
@@ -125,16 +157,16 @@ export default function PaywallPage() {
           </div>
         </motion.div>
 
-        <motion.aside className="offer-card" initial={{ opacity: 0, y: reduceMotion ? 0 : 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reduceMotion ? 0 : .18 }}>
+        <motion.aside ref={offerRef} className="offer-card" initial={{ opacity: 0, y: reduceMotion ? 0 : 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reduceMotion ? 0 : .18 }}>
           <p className="offer-eyebrow">ELIGE CÓMO CONTINUAR</p>
           <div className="plan-options" role="radiogroup" aria-label="Duración del plan">
-            <button type="button" role="radio" aria-checked={plan === "annual"} onClick={() => setPlan("annual")}>
+            <button type="button" role="radio" aria-checked={plan === "annual"} onClick={() => { setPlan("annual"); track("paywall_plan_elegido", { plan_elegido: "annual" }, "plan:annual"); }}>
               <span className="saving-badge">2 MESES GRATIS</span>
               <span className="plan-name"><b>Anual</b><small>Mejor valor</small></span>
               <span className="plan-price"><b>US$5.83</b><small>/mes</small></span>
               <span className="plan-total">Después de la prueba: US$69.90 al año</span>
             </button>
-            <button type="button" role="radio" aria-checked={plan === "monthly"} onClick={() => setPlan("monthly")}>
+            <button type="button" role="radio" aria-checked={plan === "monthly"} onClick={() => { setPlan("monthly"); track("paywall_plan_elegido", { plan_elegido: "monthly" }, "plan:monthly"); }}>
               <span className="plan-name"><b>Mensual</b><small>Flexibilidad mes a mes</small></span>
               <span className="plan-price"><b>US$6.99</b><small>/mes</small></span>
               <span className="plan-total">Después de la prueba: US$6.99 al mes</span>
