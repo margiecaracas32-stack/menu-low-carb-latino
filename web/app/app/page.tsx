@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
+import { loadPersonalizedAppData } from "../../lib/personalized-app";
 import InternalApp from "./internal-app";
 import "./internal.css";
 
@@ -16,5 +17,6 @@ export default async function AppPage() {
     if (error || hasAccess !== true) redirect("/paywall?access=required");
   }
 
-  return <InternalApp demoMode={!user} />;
+  const initialData = user ? await loadPersonalizedAppData(supabase, user.id) : null;
+  return <InternalApp demoMode={!user} userId={user?.id} initialData={initialData} />;
 }

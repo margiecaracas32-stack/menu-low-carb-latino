@@ -289,3 +289,16 @@ Planificador semanal low carb para mujeres latinas ocupadas que cocinan para su 
 - QA responsive: 7/7 tarjetas renderizadas, sin solapamientos, sin scroll horizontal y con separacion computada de 8 px a 375 px y escritorio. Evidencias: `web/artifacts/recipe-spacing-375-final.png` y `web/artifacts/recipe-spacing-desktop-final.png`.
 - Revisor visual independiente: APROBAR, usabilidad 39/40 y craft 18/20. La captura final de escritorio se repitio tras terminar el stagger y elimino la semitransparencia temporal observada en la primera evidencia.
 - Verificacion tecnica: TypeScript y ESLint pasan, 10/10 pruebas del webhook Hotmart pasan y `next build` 16.2.11 genera correctamente las 13 rutas.
+
+## Sesion 13 — nucleo real de personalizacion (2026-08-11, en curso)
+- Decision de arquitectura: reutilizar `households`, `dietary_preferences`, `weekly_plans`, `plan_meals`, `shopping_lists` y `shopping_items`; no crear un segundo sistema de preferencias.
+- El onboarding conserva sus respuestas localmente antes del pago. En el primer acceso autenticado, el servidor valida la sesion y el acceso vigente, deriva una semana desde un catalogo curado y guarda preferencias, siete cenas y compra en una sola operacion atomica.
+- Motor inicial decidido: seleccion determinista `curated-v2`, sin IA ni servicio pagado. Respeta personas, tiempo disponible y exclusiones elegidas; escala cantidades y agrupa duplicados. La IA se evaluara solo si aporta una mejora medible sin comprometer seguridad alimentaria ni margen.
+- Seguridad acordada: validacion estricta en el limite, allowlists de opciones/recetas, acceso comprobado en servidor, RPC `security definer` con `search_path=''` y RLS como segunda barrera.
+- Alcance de esta etapa: preferencias persistentes, semana y compra reales. Progreso, favoritos e instrumentacion se cerraran en etapas posteriores para evitar mezclar cambios.
+- Implementacion local completada: catalogo curado ampliado a 14 recetas; generador de siete dias; filtro por 20/30/45 minutos y exclusiones; porciones e ingredientes escalados; compra agregada por pasillos; renovacion automatica al vencer la semana.
+- Se retiro `demo-data.ts`. El onboarding y la app comparten ahora el mismo motor, por lo que la muestra, la semana pagada y el conteo de compra usan la misma fuente.
+- API preparada en `POST /api/app/personalize`: exige sesion y acceso vigente en servidor, valida origen/respuestas y llama una RPC atomica. La app sincroniza localStorage solo en el primer acceso; despues carga Supabase y funciona entre dispositivos.
+- Migracion preparada en `20260811130000_personalized_week.sql`. La comprobacion externa anonima devolvio 404: la funcion aun no esta activa en el proyecto remoto, por lo que no se publica esta capa hasta autorizar/aplicar la migracion.
+- Evidencia tecnica: TypeScript y ESLint sin hallazgos, build de produccion correcto, 10/10 pruebas Hotmart y 4/4 pruebas nuevas de personalizacion pasan.
+- Evidencia visual: `web/artifacts/personalization-onboarding.png` y `web/artifacts/personalization-recipes.png`. Revisor independiente: APROBAR, usabilidad 39/40 y craft 18/20. El unico aviso visible pertenece al modo desarrollo: CSP bloquea `eval` de las herramientas de Next; no ocurre en produccion.

@@ -24,14 +24,16 @@ import {
   WifiOff,
   X,
 } from "lucide-react";
-import { buildWeek, RECIPES, SHOPPING_ITEMS, type Recipe, type ShoppingItem } from "./demo-data";
+import { buildDemoPlan, RECIPES, type Recipe, type ShoppingItem, type WeekMeal } from "./recipe-catalog";
+import type { PersonalizedAppData } from "../../lib/personalized-app";
 
 type TabId = "today" | "week" | "shopping" | "recipes";
 type FilterId = "Todas" | "Familia" | "Rápida" | "Favoritas";
 type ModalState = { type: "recipe"; recipe: Recipe } | { type: "swap" } | { type: "add-item" } | null;
 
-const STORAGE_KEY = "menu-low-carb-demo-v1";
-const WEEK = buildWeek();
+const STORAGE_KEY = "menu-low-carb-internal-v1";
+const ONBOARDING_KEY = "menu-low-carb-onboarding-v1";
+const DEMO_PLAN = buildDemoPlan();
 const TABS = [
   { id: "today" as const, label: "Hoy", icon: House },
   { id: "week" as const, label: "Semana", icon: CalendarDays },
@@ -45,8 +47,16 @@ const itemVariants: Variants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: EASE } },
 };
 
-function recipeById(id: string) {
-  return RECIPES.find((recipe) => recipe.id === id) ?? RECIPES[0];
+function recipeById(id: string, recipes: Recipe[]) {
+  return recipes.find((recipe) => recipe.id === id) ?? recipes[0];
+}
+
+function scaleIngredient(ingredient: string, servings: number) {
+  const match = ingredient.match(/^(\d+(?:[.,]\d+)?)\s+(.+)$/);
+  if (!match || servings === 4) return ingredient;
+  const raw = Number(match[1].replace(",", ".")) * servings / 4;
+  const amount = /^(g|ml)\b/i.test(match[2]) ? Math.max(10, Math.ceil(raw / 10) * 10) : Math.max(1, Math.ceil(raw));
+  return `${amount} ${match[2]}`;
 }
 
 function CountUp({ value }: { value: number }) {
@@ -93,28 +103,57 @@ function LoadingView() {
   );
 }
 
-export default function InternalApp({ demoMode }: { demoMode: boolean }) {
+export default function InternalApp({ demoMode, userId, initialData }: { demoMode: boolean; userId?: string; initialData: PersonalizedAppData | null }) {
   const reduceMotion = useReducedMotion();
+  const householdSize = initialData?.householdSize ?? DEMO_PLAN.householdSize;
+  const recipes = useMemo(() => RECIPES.map((recipe) => ({ ...recipe, servings: householdSize, ingredients: recipe.ingredients.map((item) => scaleIngredient(item, householdSize)) })), [householdSize]);
+  const week = initialData?.week ?? DEMO_PLAN.week;
+  const baseShoppingItems = initialData?.shoppingItems ?? DEMO_PLAN.shoppingItems;
+  const currentDate = new Date();
+  const currentIso = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
+  const currentDayIndex = Math.max(0, week.findIndex((entry) => entry.date === currentIso));
   const [tab, setTab] = useState<TabId>("today");
   const [loading, setLoading] = useState(true);
   const [online, setOnline] = useState(true);
   const [storageError, setStorageError] = useState(false);
-  const [todayRecipeId, setTodayRecipeId] = useState(WEEK[0].recipeId);
-  const [completedMeals, setCompletedMeals] = useState<string[]>([WEEK[1].recipeId, WEEK[2].recipeId]);
-  const [checkedItems, setCheckedItems] = useState<string[]>(SHOPPING_ITEMS.slice(0, 4).map((item) => item.id));
-  const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>(SHOPPING_ITEMS);
+  const [todayRecipeId, setTodayRecipeId] = useState(week[currentDayIndex].recipeId);
+  const [completedMeals, setCompletedMeals] = useState<string[]>(demoMode ? [week[1].recipeId, week[2].recipeId] : []);
+  const [checkedItems, setCheckedItems] = useState<string[]>(baseShoppingItems.filter((item) => item.checked).map((item) => item.id));
+  const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>(baseShoppingItems);
   const [favorites, setFavorites] = useState<string[]>(["pollo-calabacin", "picadillo-coliflor"]);
-  const [selectedDay, setSelectedDay] = useState(0);
+  const [selectedDay, setSelectedDay] = useState(currentDayIndex);
   const [filter, setFilter] = useState<FilterId>("Todas");
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState<ModalState>(null);
   const [newItem, setNewItem] = useState("");
   const [message, setMessage] = useState("");
+  const [personalizationState, setPersonalizationState] = useState<"ready" | "syncing" | "missing" | "error">(initialData || demoMode ? "ready" : "syncing");
 
-  const todayRecipe = recipeById(todayRecipeId);
-  const selectedRecipe = recipeById(WEEK[selectedDay].recipeId);
-  const completion = Math.round((completedMeals.length / WEEK.length) * 100);
+  const todayRecipe = recipeById(todayRecipeId, recipes);
+  const selectedRecipe = recipeById(week[selectedDay].recipeId, recipes);
+  const completion = Math.round((completedMeals.length / week.length) * 100);
   const shoppingCompletion = shoppingItems.length ? Math.round((checkedItems.length / shoppingItems.length) * 100) : 0;
+
+  useEffect(() => {
+    if (!userId || initialData || demoMode) return;
+    let cancelled = false;
+    async function synchronize() {
+      try {
+        const stored = window.localStorage.getItem(ONBOARDING_KEY);
+        const answers = stored ? JSON.parse(stored)?.answers : null;
+        const response = await fetch("/api/app/personalize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ answers }),
+        });
+        if (response.status === 400) { if (!cancelled) setPersonalizationState("missing"); return; }
+        if (!response.ok) throw new Error("personalization_failed");
+        if (!cancelled) window.location.reload();
+      } catch { if (!cancelled) setPersonalizationState("error"); }
+    }
+    void synchronize();
+    return () => { cancelled = true; };
+  }, [demoMode, initialData, userId]);
 
   useEffect(() => {
     let finish = 0;
@@ -133,11 +172,11 @@ export default function InternalApp({ demoMode }: { demoMode: boolean }) {
             favorites?: string[];
             extraItems?: ShoppingItem[];
           };
-          if (parsed.todayRecipeId && recipeById(parsed.todayRecipeId)) setTodayRecipeId(parsed.todayRecipeId);
+          if (parsed.todayRecipeId && recipes.some((recipe) => recipe.id === parsed.todayRecipeId)) setTodayRecipeId(parsed.todayRecipeId);
           if (Array.isArray(parsed.completedMeals)) setCompletedMeals(parsed.completedMeals);
           if (Array.isArray(parsed.checkedItems)) setCheckedItems(parsed.checkedItems);
           if (Array.isArray(parsed.favorites)) setFavorites(parsed.favorites);
-          if (Array.isArray(parsed.extraItems) && parsed.extraItems.length) setShoppingItems([...SHOPPING_ITEMS, ...parsed.extraItems]);
+          if (Array.isArray(parsed.extraItems) && parsed.extraItems.length) setShoppingItems([...baseShoppingItems, ...parsed.extraItems]);
         }
       } catch {
         setStorageError(true);
@@ -156,7 +195,7 @@ export default function InternalApp({ demoMode }: { demoMode: boolean }) {
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
     };
-  }, [reduceMotion]);
+  }, [baseShoppingItems, recipes, reduceMotion]);
 
   useEffect(() => {
     if (loading) return;
@@ -214,15 +253,15 @@ export default function InternalApp({ demoMode }: { demoMode: boolean }) {
   }
 
   const filteredRecipes = useMemo(() => {
-    return RECIPES.filter((recipe) => {
+    return recipes.filter((recipe) => {
       const matchesFilter = filter === "Todas" || (filter === "Favoritas" ? favorites.includes(recipe.id) : recipe.tags.includes(filter));
       const matchesSearch = recipe.title.toLowerCase().includes(search.trim().toLowerCase());
       return matchesFilter && matchesSearch;
     });
-  }, [favorites, filter, search]);
+  }, [favorites, filter, recipes, search]);
 
   const dateLabel = new Intl.DateTimeFormat("es", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
-  const rangeLabel = `${new Intl.DateTimeFormat("es", { day: "numeric", month: "short" }).format(new Date(`${WEEK[0].date}T12:00:00`))} – ${new Intl.DateTimeFormat("es", { day: "numeric", month: "short" }).format(new Date(`${WEEK[6].date}T12:00:00`))}`;
+  const rangeLabel = `${new Intl.DateTimeFormat("es", { day: "numeric", month: "short" }).format(new Date(`${week[0].date}T12:00:00`))} – ${new Intl.DateTimeFormat("es", { day: "numeric", month: "short" }).format(new Date(`${week[6].date}T12:00:00`))}`;
 
   return (
     <div className="internal-shell paper">
@@ -233,16 +272,19 @@ export default function InternalApp({ demoMode }: { demoMode: boolean }) {
 
       {!online && <div className="internal-offline" role="status"><WifiOff/> Sin conexión. Puedes seguir marcando tu lista; guardaremos los cambios en este dispositivo.</div>}
       {demoMode && <div className="internal-demo" role="note"><Sparkles/> Vista local con datos de demostración. El acceso real seguirá protegido al publicar.</div>}
+      {personalizationState === "syncing" && <div className="internal-demo" role="status"><Sparkles/> Guardando tus preferencias y preparando tu semana…</div>}
+      {personalizationState === "missing" && <div className="internal-error" role="alert"><CircleAlert/><span>Faltan tus tres preferencias para preparar la semana.</span><Link href="/onboarding">Responder ahora</Link></div>}
+      {personalizationState === "error" && <div className="internal-error" role="alert"><CircleAlert/><span>No pudimos guardar tu semana.</span><button onClick={() => window.location.reload()}>Intentar de nuevo</button></div>}
       {storageError && <div className="internal-error" role="alert"><CircleAlert/><span>No pudimos recuperar los cambios anteriores.</span><button onClick={() => { window.localStorage.removeItem(STORAGE_KEY); setStorageError(false); }}>Empezar con la semana guardada</button></div>}
 
       <main className="internal-main">
         {loading ? <LoadingView/> : (
           <AnimatePresence mode="wait">
             <motion.div key={tab} className="internal-content" variants={listVariants} initial="hidden" animate="visible" exit={{ opacity: 0, y: reduceMotion ? 0 : -8 }} transition={{ duration: 0.22, ease: EASE }}>
-              {tab === "today" && <TodayView recipe={todayRecipe} dateLabel={dateLabel} completion={completion} completed={completedMeals.includes(todayRecipe.id)} onRecipe={() => setModal({ type: "recipe", recipe: todayRecipe })} onSwap={() => setModal({ type: "swap" })} onComplete={toggleTodayComplete}/>} 
-              {tab === "week" && <WeekView rangeLabel={rangeLabel} selectedDay={selectedDay} onSelectDay={setSelectedDay} selectedRecipe={selectedRecipe} completion={completion} onToday={() => changeTab("today")} onRecipe={() => setModal({ type: "recipe", recipe: selectedRecipe })}/>} 
-              {tab === "shopping" && <ShoppingView items={shoppingItems} checkedItems={checkedItems} progress={shoppingCompletion} onToggle={toggleShoppingItem} onAdd={() => setModal({ type: "add-item" })}/>} 
-              {tab === "recipes" && <RecipesView recipes={filteredRecipes} favorites={favorites} filter={filter} search={search} onFilter={setFilter} onSearch={setSearch} onFavorite={toggleFavorite} onRecipe={(recipe) => setModal({ type: "recipe", recipe })}/>} 
+              {tab === "today" && <TodayView recipe={todayRecipe} dateLabel={dateLabel} completion={completion} completed={completedMeals.includes(todayRecipe.id)} onRecipe={() => setModal({ type: "recipe", recipe: todayRecipe })} onSwap={() => setModal({ type: "swap" })} onComplete={toggleTodayComplete}/>}
+              {tab === "week" && <WeekView week={week} rangeLabel={rangeLabel} selectedDay={selectedDay} onSelectDay={setSelectedDay} selectedRecipe={selectedRecipe} completion={completion} onToday={() => changeTab("today")} onRecipe={() => setModal({ type: "recipe", recipe: selectedRecipe })}/>}
+              {tab === "shopping" && <ShoppingView items={shoppingItems} checkedItems={checkedItems} progress={shoppingCompletion} onToggle={toggleShoppingItem} onAdd={() => setModal({ type: "add-item" })}/>}
+              {tab === "recipes" && <RecipesView recipes={filteredRecipes} favorites={favorites} filter={filter} search={search} onFilter={setFilter} onSearch={setSearch} onFavorite={toggleFavorite} onRecipe={(recipe) => setModal({ type: "recipe", recipe })}/>}
             </motion.div>
           </AnimatePresence>
         )}
@@ -263,7 +305,7 @@ export default function InternalApp({ demoMode }: { demoMode: boolean }) {
       </nav>
 
       <AnimatePresence>{message && <motion.div className="internal-toast" role="status" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}><Check/>{message}</motion.div>}</AnimatePresence>
-      <AnimatePresence>{modal && <InternalModal modal={modal} todayRecipe={todayRecipe} newItem={newItem} setNewItem={setNewItem} onClose={() => setModal(null)} onSwap={chooseSwap} onAddItem={addShoppingItem}/>}</AnimatePresence>
+      <AnimatePresence>{modal && <InternalModal modal={modal} recipes={recipes} todayRecipe={todayRecipe} newItem={newItem} setNewItem={setNewItem} onClose={() => setModal(null)} onSwap={chooseSwap} onAddItem={addShoppingItem}/>}</AnimatePresence>
     </div>
   );
 }
@@ -290,11 +332,11 @@ function TodayView({ recipe, dateLabel, completion, completed, onRecipe, onSwap,
   </>;
 }
 
-function WeekView({ rangeLabel, selectedDay, onSelectDay, selectedRecipe, completion, onToday, onRecipe }: { rangeLabel: string; selectedDay: number; onSelectDay: (index: number) => void; selectedRecipe: Recipe; completion: number; onToday: () => void; onRecipe: () => void }) {
+function WeekView({ week, rangeLabel, selectedDay, onSelectDay, selectedRecipe, completion, onToday, onRecipe }: { week: WeekMeal[]; rangeLabel: string; selectedDay: number; onSelectDay: (index: number) => void; selectedRecipe: Recipe; completion: number; onToday: () => void; onRecipe: () => void }) {
   return <>
     <motion.header className="internal-period-heading" variants={itemVariants}><div><p>PLAN FAMILIAR</p><h1>Siete cenas, una sola decisión.</h1><span>{rangeLabel}</span></div><div><button type="button" aria-label="Semana anterior"><ChevronLeft/></button><button type="button" aria-label="Semana siguiente" disabled><ChevronRight/></button></div></motion.header>
     <motion.section className="internal-week-strip" variants={itemVariants} aria-label="Días de la semana">
-      {WEEK.map((entry, index) => { const date = new Date(`${entry.date}T12:00:00`); const selected = selectedDay === index; return <button key={entry.date} type="button" aria-pressed={selected} onClick={() => onSelectDay(index)}><span>{new Intl.DateTimeFormat("es", { weekday: "short" }).format(date).slice(0, 2)}</span><b>{date.getDate()}</b>{index < 2 && <Check/>}</button>; })}
+      {week.map((entry, index) => { const date = new Date(`${entry.date}T12:00:00`); const selected = selectedDay === index; return <button key={entry.date} type="button" aria-pressed={selected} onClick={() => onSelectDay(index)}><span>{new Intl.DateTimeFormat("es", { weekday: "short" }).format(date).slice(0, 2)}</span><b>{date.getDate()}</b>{index < 2 && <Check/>}</button>; })}
     </motion.section>
     <motion.section className="internal-week-focus" variants={itemVariants}>
       <RecipeVisual recipe={selectedRecipe} compact/><div><p>{selectedDay === 0 ? "HOY" : `DÍA ${selectedDay + 1}`}</p><h2>{selectedRecipe.title}</h2><span>{selectedRecipe.minutes} min · rinde {selectedRecipe.servings}</span><button type="button" onClick={onRecipe}>Ver detalles <ArrowRight/></button></div>
@@ -325,12 +367,12 @@ function RecipesView({ recipes, favorites, filter, search, onFilter, onSearch, o
   </>;
 }
 
-function InternalModal({ modal, todayRecipe, newItem, setNewItem, onClose, onSwap, onAddItem }: { modal: Exclude<ModalState, null>; todayRecipe: Recipe; newItem: string; setNewItem: (value: string) => void; onClose: () => void; onSwap: (recipe: Recipe) => void; onAddItem: (event: FormEvent) => void }) {
+function InternalModal({ modal, recipes, todayRecipe, newItem, setNewItem, onClose, onSwap, onAddItem }: { modal: Exclude<ModalState, null>; recipes: Recipe[]; todayRecipe: Recipe; newItem: string; setNewItem: (value: string) => void; onClose: () => void; onSwap: (recipe: Recipe) => void; onAddItem: (event: FormEvent) => void }) {
   return <motion.div className="internal-overlay" role="dialog" aria-modal="true" aria-label={modal.type === "recipe" ? modal.recipe.title : modal.type === "swap" ? "Sustituir cena" : "Añadir producto"} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}>
     <motion.section className="internal-sheet" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }} transition={{ duration: 0.3, ease: EASE }}>
       <button className="internal-close" type="button" onClick={onClose} aria-label="Cerrar"><X/></button>
       {modal.type === "recipe" && <><p className="kicker">RECETA PASO A PASO</p><h2>{modal.recipe.title}</h2><div className="internal-sheet-meta"><span><Clock3/>{modal.recipe.minutes} min</span><span><Utensils/>{modal.recipe.servings} porciones</span></div><h3>Ingredientes</h3><ul>{modal.recipe.ingredients.map((ingredient) => <li key={ingredient}><Check/>{ingredient}</li>)}</ul><h3>Preparación</h3><ol>{modal.recipe.steps.map((step, index) => <li key={step}><span>{index + 1}</span>{step}</li>)}</ol></>}
-      {modal.type === "swap" && <><p className="kicker">CAMBIO COMPATIBLE</p><h2>Otra cena, la semana intacta.</h2><p className="internal-sheet-intro">Conservamos cuatro porciones y priorizamos ingredientes que ya están en tu compra.</p><div className="internal-swap-list">{RECIPES.filter((recipe) => recipe.id !== todayRecipe.id).slice(0, 3).map((recipe) => <button key={recipe.id} type="button" onClick={() => onSwap(recipe)}><RecipeVisual recipe={recipe} compact/><span><b>{recipe.title}</b><small>{recipe.minutes} min · {recipe.tags.join(" · ")}</small></span><ArrowRight/></button>)}</div></>}
+      {modal.type === "swap" && <><p className="kicker">CAMBIO COMPATIBLE</p><h2>Otra cena, la semana intacta.</h2><p className="internal-sheet-intro">Conservamos {todayRecipe.servings} porciones y priorizamos ingredientes que ya están en tu compra.</p><div className="internal-swap-list">{recipes.filter((recipe) => recipe.id !== todayRecipe.id).slice(0, 3).map((recipe) => <button key={recipe.id} type="button" onClick={() => onSwap(recipe)}><RecipeVisual recipe={recipe} compact/><span><b>{recipe.title}</b><small>{recipe.minutes} min · {recipe.tags.join(" · ")}</small></span><ArrowRight/></button>)}</div></>}
       {modal.type === "add-item" && <><p className="kicker">EXTRA PARA TU CASA</p><h2>Añade lo que falta.</h2><p className="internal-sheet-intro">Este producto quedará en Despensa y podrás marcarlo como el resto.</p><form className="internal-add-form" onSubmit={onAddItem}><label htmlFor="new-shopping-item">Producto</label><input id="new-shopping-item" autoFocus value={newItem} onChange={(event) => setNewItem(event.target.value)} placeholder="Ej. café molido"/><button className="internal-primary" type="submit" disabled={!newItem.trim()}>Añadir a mi lista <Plus/></button></form></>}
     </motion.section>
   </motion.div>;

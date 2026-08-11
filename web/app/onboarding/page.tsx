@@ -16,6 +16,7 @@ import {
   Utensils,
   WifiOff,
 } from "lucide-react";
+import { derivePersonalizedPlan, RECIPES, validateAnswers } from "../app/recipe-catalog";
 
 type Answers = { people: string; avoids: string[]; time: string };
 const EMPTY: Answers = { people: "", avoids: [], time: "" };
@@ -47,24 +48,6 @@ const questions = [
     icon: Clock3,
   },
 ];
-
-const mealSets: Record<string, string[][]> = {
-  "Hasta 20 min": [
-    ["Lunes", "Pollo al limón con calabacín", "18 min · una sartén", "Carne salteada con vegetales"],
-    ["Martes", "Picadillo rápido con repollo", "20 min · sabor familiar", "Tacos de lechuga con pollo"],
-    ["Miércoles", "Pescado al ajo con ensalada criolla", "18 min · compra compartida", "Chuletas con ensalada de aguacate"],
-  ],
-  "Hasta 30 min": [
-    ["Lunes", "Pollo al limón con calabacín", "25 min · ingredientes comunes", "Carne salteada con vegetales"],
-    ["Martes", "Picadillo latino con repollo", "30 min · sabor familiar", "Tacos de lechuga con pollo"],
-    ["Miércoles", "Pescado al mojo con ensalada criolla", "25 min · compra compartida", "Chuletas con ensalada de aguacate"],
-  ],
-  "Hasta 45 min": [
-    ["Lunes", "Pollo guisado con calabacín", "40 min · sabor de casa", "Carne guisada con vegetales"],
-    ["Martes", "Pastelón de coliflor y picadillo", "45 min · rinde para la familia", "Berenjenas rellenas de pollo"],
-    ["Miércoles", "Pescado al mojo con vegetales", "35 min · compra compartida", "Chuletas con ensalada de aguacate"],
-  ],
-};
 
 export default function OnboardingPage() {
   const reduceMotion = useReducedMotion();
@@ -117,7 +100,17 @@ export default function OnboardingPage() {
     `Buscando cenas de ${answers.time.toLowerCase() || "preparación sencilla"}`,
     "Organizando tres días y una sola compra",
   ], [answers, people]);
-  const previewMeals = mealSets[answers.time] ?? mealSets["Hasta 30 min"];
+  const previewPlan = useMemo(() => {
+    const valid = validateAnswers(answers);
+    return derivePersonalizedPlan(valid ?? { people: "4 personas", avoids: ["Ninguno"], time: "Hasta 30 min" });
+  }, [answers]);
+  const previewMeals = previewPlan.week.slice(0, 3).map((entry, index) => {
+    const recipe = RECIPES.find((item) => item.id === entry.recipeId) ?? RECIPES[0];
+    const alternativeEntry = previewPlan.week[index + 3] ?? previewPlan.week[0];
+    const alternative = RECIPES.find((item) => item.id === alternativeEntry.recipeId) ?? RECIPES[0];
+    const day = new Intl.DateTimeFormat("es", { weekday: "long" }).format(new Date(`${entry.date}T12:00:00`));
+    return [day[0].toUpperCase() + day.slice(1), recipe.title, `${recipe.minutes} min · ${entry.servings} porciones`, alternative.title];
+  });
   const avoidanceLabel = answers.avoids.includes("Ninguno") ? "Sin exclusiones indicadas" : `Sin ${answers.avoids.join(", ").toLowerCase()}`;
 
   function choose(option: string) {
@@ -207,7 +200,7 @@ export default function OnboardingPage() {
                 })}
               </div>
               {swapped.length > 0 && <p className="swap-success" role="status"><Check/> Cambio hecho sin rehacer el resto de tu semana.</p>}
-              <div className="shopping-summary"><span><ShoppingBasket/></span><div><small>COMPRA RESUMIDA</small><strong>18 productos, agrupados por pasillos</strong><p>Vegetales, proteínas y despensa, sin duplicados.</p></div></div>
+              <div className="shopping-summary"><span><ShoppingBasket/></span><div><small>COMPRA RESUMIDA</small><strong>{previewPlan.shoppingItems.length} productos, agrupados por pasillos</strong><p>Vegetales, proteínas y despensa, sin duplicados.</p></div></div>
               <Link className="continue-action wide" href="/paywall">Ver mi semana completa <ArrowRight/></Link>
               <button className="text-action" onClick={reset}>Cambiar mis respuestas</button>
             </motion.section>
