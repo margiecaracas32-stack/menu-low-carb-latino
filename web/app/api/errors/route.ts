@@ -40,3 +40,40 @@ export async function POST(request: NextRequest) {
   if (error) return NextResponse.json({ error: "No pudimos registrar el error." }, { status: 503 });
   return new NextResponse(null, { status: 204 });
 }
+
+export async function PATCH(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  if (origin && origin !== request.nextUrl.origin) {
+    return NextResponse.json({ message: "Solicitud no permitida." }, { status: 403 });
+  }
+  if (Number(request.headers.get("content-length") ?? 0) > 2048) {
+    return NextResponse.json({ message: "Solicitud demasiado grande." }, { status: 413 });
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ message: "Acceso administrativo requerido." }, { status: 403 });
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (profile?.role !== "admin") return NextResponse.json({ message: "Acceso administrativo requerido." }, { status: 403 });
+
+  let fingerprint: string | null = null;
+  let message = "";
+  try {
+    const body = await request.json() as { fingerprint?: unknown; message?: unknown };
+    fingerprint = typeof body.fingerprint === "string" && body.fingerprint.length <= 240 ? body.fingerprint : null;
+    message = typeof body.message === "string" && body.message.length <= 1000 ? body.message : "";
+  } catch {
+    return NextResponse.json({ message: "No pudimos leer el aviso." }, { status: 400 });
+  }
+  if (!fingerprint && !message) return NextResponse.json({ message: "El aviso no es válido." }, { status: 400 });
+
+  const admin = createSupabaseAdminClient();
+  let query = admin.from("error_log")
+    .update({ status: "resolved", resolved_at: new Date().toISOString() })
+    .in("status", ["open", "investigating"]);
+  query = fingerprint ? query.eq("fingerprint", fingerprint) : query.is("fingerprint", null).eq("message", message);
+  const { data, error } = await query.select("id");
+  if (error) return NextResponse.json({ message: "No pudimos cerrar el aviso." }, { status: 500 });
+  if (!data?.length) return NextResponse.json({ message: "El aviso ya estaba cerrado." }, { status: 409 });
+  return NextResponse.json({ message: data.length === 1 ? "1 registro marcado como resuelto." : `${data.length} registros marcados como resueltos.` });
+}

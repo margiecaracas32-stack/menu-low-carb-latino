@@ -315,7 +315,29 @@ function ManualAccessManager({ grants, configured }: { grants: ManualGrant[]; co
 
 function ErrorsSection({ data }: { data: AdminDashboardData }) {
   const errors = data.errors;
+  const [resolvingError, setResolvingError] = useState<string | null>(null);
+  const [resolutionMessage, setResolutionMessage] = useState("");
   const healthy = errors.open === 0 && errors.webhookFailures === 0 && errors.supportOpen === 0;
+
+  async function resolveErrorGroup(group: AdminDashboardData["errors"]["groups"][number]) {
+    const groupKey = group.fingerprint ?? group.label;
+    setResolvingError(groupKey);
+    setResolutionMessage("");
+    try {
+      const result = await fetch("/api/errors", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fingerprint: group.fingerprint, message: group.label }),
+      });
+      const payload = await result.json() as { message?: string };
+      if (!result.ok) throw new Error(payload.message || "No se pudo cerrar el aviso.");
+      setResolutionMessage(payload.message || "Aviso cerrado.");
+      window.setTimeout(() => window.location.reload(), 650);
+    } catch (error) {
+      setResolutionMessage(error instanceof Error ? error.message : "No se pudo cerrar el aviso.");
+      setResolvingError(null);
+    }
+  }
   return <>
     <section className="admin-health-hero" data-healthy={healthy && errors.open != null}>
       <div className="admin-health-icon">{healthy && errors.open != null ? <CheckCircle2/> : errors.open == null ? <Clock3/> : <TriangleAlert/>}</div>
@@ -329,7 +351,8 @@ function ErrorsSection({ data }: { data: AdminDashboardData }) {
     </div>
     <section className="admin-card admin-issues">
       <SectionTitle eyebrow="PRIORIDAD POR IMPACTO" title="Problemas agrupados"/>
-      {errors.groups.length ? <div>{errors.groups.map((group) => <article key={group.label}><div><TriangleAlert/><span><b>{group.label}</b><small>{group.users} usuarios · {group.count} veces</small></span></div>{group.sentryUrl && <a href={group.sentryUrl} target="_blank" rel="noreferrer">Ver detalle técnico <ExternalLink/></a>}</article>)}</div> : <EmptyData title="No hay errores registrados">Cuando se conecte Sentry y el registro del servidor, aquí aparecerán agrupados por impacto.</EmptyData>}
+      {resolutionMessage && <p className="admin-support-message" role="status">{resolutionMessage}</p>}
+      {errors.groups.length ? <div>{errors.groups.map((group) => <article key={group.fingerprint ?? group.label}><div><TriangleAlert/><span><b>{group.label}</b><small>{group.users} usuarios · {group.count} veces</small></span></div><div className="admin-issue-actions">{group.sentryUrl && <a href={group.sentryUrl} target="_blank" rel="noreferrer">Ver detalle técnico <ExternalLink/></a>}<button type="button" disabled={resolvingError != null} onClick={() => resolveErrorGroup(group)}><CheckCircle2/>{resolvingError === (group.fingerprint ?? group.label) ? "Cerrando…" : "Marcar resuelto"}</button></div></article>)}</div> : <EmptyData title="No hay errores registrados">Cuando se conecte Sentry y el registro del servidor, aquí aparecerán agrupados por impacto.</EmptyData>}
     </section>
     <SupportTickets tickets={errors.supportTickets}/>
   </>;

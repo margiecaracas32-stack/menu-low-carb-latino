@@ -73,7 +73,7 @@ export type AdminDashboardData = {
     webhookFailures: number | null;
     supportOpen: number | null;
     lastWebhookAt: string | null;
-    groups: Array<{ label: string; count: number; users: number; status: string; sentryUrl: string | null }>;
+    groups: Array<{ fingerprint: string | null; label: string; count: number; users: number; status: string; sentryUrl: string | null }>;
     supportTickets: Array<{
       id: string;
       email: string;
@@ -346,10 +346,10 @@ export async function loadAdminDashboard(supabase: SupabaseClient): Promise<Admi
     const openErrors = errors.filter((row) => row.status === "open" || row.status === "investigating");
     output.errors.open = openErrors.length;
     output.errors.affectedUsers = unique(openErrors.map((row) => row.user_id));
-    const groups = new Map<string, { label: string; count: number; users: Set<string>; status: string; sentryUrl: string | null }>();
+    const groups = new Map<string, { fingerprint: string | null; label: string; count: number; users: Set<string>; status: string; sentryUrl: string | null }>();
     for (const row of openErrors) {
       const key = String(row.fingerprint ?? row.message);
-      const current = groups.get(key) ?? { label: String(row.message), count: 0, users: new Set<string>(), status: String(row.status), sentryUrl: row.sentry_issue_url ? String(row.sentry_issue_url) : null };
+      const current = groups.get(key) ?? { fingerprint: row.fingerprint ? String(row.fingerprint) : null, label: String(row.message), count: 0, users: new Set<string>(), status: String(row.status), sentryUrl: row.sentry_issue_url ? String(row.sentry_issue_url) : null };
       current.count += 1;
       if (row.user_id) current.users.add(String(row.user_id));
       groups.set(key, current);
@@ -403,8 +403,8 @@ export async function loadAdminDashboard(supabase: SupabaseClient): Promise<Admi
   });
   if ((output.errors.supportOpen ?? 0) > 0) warnings.push({
     level: "warning", title: "Hay clientes esperando respuesta",
-    detail: `${output.errors.supportOpen} solicitudes de ayuda siguen abiertas.`,
-    action: "Revísalas en Errores y responde antes de 24 horas hábiles.",
+    detail: output.errors.supportOpen === 1 ? "1 solicitud de ayuda sigue abierta." : `${output.errors.supportOpen} solicitudes de ayuda siguen abiertas.`,
+    action: output.errors.supportOpen === 1 ? "Revísala en Errores y responde antes de 24 horas hábiles." : "Revísalas en Errores y responde antes de 24 horas hábiles.",
   });
   if ((output.sales.involuntaryChurn ?? 0) > (output.sales.voluntaryChurn ?? 0) && (output.sales.involuntaryChurn ?? 0) > 0) warnings.push({
     level: "warning", title: "Se pierden clientes por pagos fallidos",

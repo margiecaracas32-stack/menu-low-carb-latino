@@ -414,6 +414,10 @@
 .admin-issues article small { color: var(--admin-muted); font-size: 11px; }
 .admin-issues article a { display: inline-flex; align-items: center; gap: 5px; color: var(--admin-forest); font-size: 11px; font-weight: 800; }
 .admin-issues article a svg { width: 14px; }
+.admin-issue-actions { display: flex; align-items: center; gap: 8px; }
+.admin-issue-actions button { display: inline-flex; min-height: 38px; align-items: center; gap: 6px; padding: 8px 10px; color: #fffaf2; background: var(--admin-forest); border: 0; border-radius: 9px; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
+.admin-issue-actions button svg { width: 15px; }
+.admin-issue-actions button:disabled { cursor: wait; opacity: .58; }
 
 .admin-support-tickets { padding: 22px; }
 .admin-support-list { display: grid; gap: 10px; }
@@ -510,6 +514,8 @@
   .admin-support-tickets { padding: 17px; }
   .admin-support-meta { align-items: flex-start; flex-direction: column; gap: 6px; }
   .admin-support-list button { width: 100%; justify-content: center; }
+  .admin-issues article { align-items: flex-start; flex-direction: column; }
+  .admin-issue-actions { width: 100%; justify-content: flex-end; }
   .admin-manual-heading { display: grid; gap: 16px; }
   .admin-manual-heading > button { width: 100%; }
   .admin-manual-form { grid-template-columns: 1fr; padding: 15px; }
