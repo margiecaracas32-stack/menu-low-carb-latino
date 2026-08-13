@@ -1,6 +1,6 @@
 # Certificado de publicación
 
-Estado: **bloqueado para apertura pública**. Fecha: 2026-08-10.
+Estado: **bloqueado para apertura pública**. Fecha: 2026-08-11.
 
 ## Infraestructura comprobada
 
@@ -19,15 +19,16 @@ Estado: **bloqueado para apertura pública**. Fecha: 2026-08-10.
 - Auditoría de dependencias: 0 vulnerabilidades conocidas.
 - TypeScript: aprobado.
 - ESLint: aprobado sin errores ni advertencias.
-- Hotmart: 10/10 pruebas.
-- Build de producción: aprobado, 13 rutas.
+- Hotmart: 10/10 pruebas; personalización: 6/6; privacidad: 3/3.
+- TypeScript y ESLint: aprobados después de la capa de privacidad y soporte.
+- Último build completo aprobado antes de la capa de soporte: 16 rutas. La repetición local posterior quedó bloqueada exclusivamente por descarga de Google Fonts en el entorno de auditoría; requiere repetición en Vercel.
 
 ## Pendiente para completar este certificado
 
-1. Implementar y probar la personalización real del producto.
-2. Conectar observabilidad y soporte operativo.
-3. Resolver los casos de pago no verificados definidos en `PAYMENT-CERTIFICATION.md`.
-4. Commit, push, despliegue y verificación del mismo SHA auditado.
-5. Ejecutar una segunda publicación automática de prueba y registrar ambos IDs de despliegue.
+1. Aplicar `20260811210000_privacy_operations.sql` y probar consentimiento, exportación, soporte y borrado con una cuenta controlada.
+2. Ejecutar y restaurar una copia lógica de Supabase; registrar RPO/RTO reales.
+3. Obtener revisión jurídica profesional de los textos de privacidad y términos para los países de venta.
+4. Repetir build en Vercel, commit, push, despliegue y verificación del mismo SHA auditado.
+5. El plan anual continúa sin una adhesión E2E; no autorizar publicidad del anual como recorrido certificado hasta probarlo con aprobación de gasto.
 
 No existe autorización de venta pública mientras algún punto siga pendiente.

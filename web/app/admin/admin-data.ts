@@ -71,8 +71,17 @@ export type AdminDashboardData = {
     open: number | null;
     affectedUsers: number | null;
     webhookFailures: number | null;
+    supportOpen: number | null;
     lastWebhookAt: string | null;
     groups: Array<{ label: string; count: number; users: number; status: string; sentryUrl: string | null }>;
+    supportTickets: Array<{
+      id: string;
+      email: string;
+      category: string;
+      message: string;
+      status: "open" | "resolved";
+      createdAt: string;
+    }>;
   };
   ai: {
     today: number | null;
@@ -124,7 +133,7 @@ const emptyData = (): AdminDashboardData => ({
     funnel: FUNNEL.map(({ key, label }) => ({ event: key, label, value: null })),
     manualAccess: [],
   },
-  errors: { open: null, affectedUsers: null, webhookFailures: null, lastWebhookAt: null, groups: [] },
+  errors: { open: null, affectedUsers: null, webhookFailures: null, supportOpen: null, lastWebhookAt: null, groups: [], supportTickets: [] },
   ai: { today: null, month: null, revenueShare: null, calls: null, failures: null, byFeature: [], costlyUsers: [] },
 });
 
@@ -154,8 +163,8 @@ export async function loadAdminDashboard(supabase: SupabaseClient): Promise<Admi
   const sevenDaysAgo = new Date(now.getTime() - 7 * 86_400_000);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 86_400_000);
 
-  const [profilesResult, eventsResult, paymentsResult, spendResult, costsResult, aiResult, errorsResult, webhooksResult, manualAccessResult] = await Promise.all([
-    readRows(supabase.from("profiles").select("id,status,source,created_at")),
+  const [profilesResult, eventsResult, paymentsResult, spendResult, costsResult, aiResult, errorsResult, webhooksResult, manualAccessResult, supportResult] = await Promise.all([
+    readRows(supabase.from("profiles").select("id,email,status,source,created_at")),
     readRows(supabase.from("event_log").select("user_id,anonymous_session_id,type,source,is_qa,metadata,occurred_at")),
     readRows(supabase.from("payment_transactions").select("user_id,status,churn_type,billing_cycle,economic_kind,amount_minor,provider_fee_minor,affiliate_fee_minor,tax_minor,refund_minor,settlement_minor,currency,source,occurred_at,reconciled_at")),
     readRows(supabase.from("acquisition_spend").select("channel,amount_minor,currency,period_start,period_end")),
@@ -164,9 +173,10 @@ export async function loadAdminDashboard(supabase: SupabaseClient): Promise<Admi
     readRows(supabase.from("error_log").select("user_id,fingerprint,message,status,sentry_issue_url,created_at")),
     readRows(supabase.from("webhook_events").select("status,received_at,processed_at")),
     readRows(supabase.from("manual_access_grants").select("id,email,reason,expires_at,revoked_at,created_at").order("created_at", { ascending: false }).limit(50)),
+    readRows(supabase.from("support_tickets").select("id,subject_id,category,message,status,created_at").order("created_at", { ascending: false }).limit(50)),
   ]);
 
-  const readiness = [profilesResult, eventsResult, paymentsResult, spendResult, costsResult, aiResult, errorsResult, webhooksResult, manualAccessResult];
+  const readiness = [profilesResult, eventsResult, paymentsResult, spendResult, costsResult, aiResult, errorsResult, webhooksResult, manualAccessResult, supportResult];
   output.sourceReady = readiness.every((entry) => entry.ready);
 
   const profiles = profilesResult.rows;
@@ -182,6 +192,19 @@ export async function loadAdminDashboard(supabase: SupabaseClient): Promise<Admi
   const aiCalls = aiResult.rows.filter((row) => within(row.created_at, monthStart));
   const errors = errorsResult.rows;
   const webhooks = webhooksResult.rows;
+
+  if (supportResult.ready) {
+    const emailByUser = new Map(profiles.map((row) => [String(row.id), String(row.email ?? "Cuenta sin correo")]));
+    output.errors.supportTickets = supportResult.rows.map((row) => ({
+      id: String(row.id),
+      email: emailByUser.get(String(row.subject_id)) ?? "Cuenta eliminada",
+      category: String(row.category),
+      message: String(row.message),
+      status: row.status === "resolved" ? "resolved" as const : "open" as const,
+      createdAt: String(row.created_at),
+    }));
+    output.errors.supportOpen = output.errors.supportTickets.filter((ticket) => ticket.status === "open").length;
+  }
 
   if (manualAccessResult.ready) {
     output.users.manualAccess = manualAccessResult.rows.map((row) => {
@@ -377,6 +400,11 @@ export async function loadAdminDashboard(supabase: SupabaseClient): Promise<Admi
     level: "critical", title: "Hay pagos que podrían no estar dando acceso",
     detail: `${output.errors.webhookFailures} eventos de Hotmart fallaron.`,
     action: "Revisa la conexión y reprocesa los eventos fallidos.",
+  });
+  if ((output.errors.supportOpen ?? 0) > 0) warnings.push({
+    level: "warning", title: "Hay clientes esperando respuesta",
+    detail: `${output.errors.supportOpen} solicitudes de ayuda siguen abiertas.`,
+    action: "Revísalas en Errores y responde antes de 24 horas hábiles.",
   });
   if ((output.sales.involuntaryChurn ?? 0) > (output.sales.voluntaryChurn ?? 0) && (output.sales.involuntaryChurn ?? 0) > 0) warnings.push({
     level: "warning", title: "Se pierden clientes por pagos fallidos",

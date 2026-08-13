@@ -13,13 +13,18 @@ import {
   ChevronRight,
   CircleAlert,
   Clock3,
+  Download,
+  ExternalLink,
   Heart,
   House,
+  LogOut,
+  MessageCircle,
   Plus,
   RefreshCw,
   Search,
   ShoppingBasket,
   Sparkles,
+  Trash2,
   Utensils,
   WifiOff,
   X,
@@ -27,10 +32,12 @@ import {
 import { buildDemoPlan, RECIPES, type Recipe, type ShoppingItem, type WeekMeal } from "./recipe-catalog";
 import type { PersonalizedAppData } from "../../lib/personalized-app";
 import { reportProductError, track, trackDaily } from "../../lib/analytics";
+import { createSupabaseBrowserClient } from "../../lib/supabase/client";
+import { DELETE_CONFIRMATION } from "../../lib/privacy";
 
 type TabId = "today" | "week" | "shopping" | "recipes";
 type FilterId = "Todas" | "Familia" | "Rápida" | "Favoritas";
-type ModalState = { type: "recipe"; recipe: Recipe } | { type: "swap" } | { type: "add-item" } | null;
+type ModalState = { type: "recipe"; recipe: Recipe } | { type: "swap" } | { type: "add-item" } | { type: "account" } | null;
 
 const STORAGE_KEY = "menu-low-carb-internal-v1";
 const ONBOARDING_KEY = "menu-low-carb-onboarding-v1";
@@ -286,7 +293,7 @@ export default function InternalApp({ demoMode, userId, userCreatedAt, initialDa
     <div className="internal-shell paper">
       <header className="internal-header">
         <Link className="internal-brand" href="/" aria-label="Volver a la página principal"><Image src="/brand/isotipo-v2.png" alt="" width={64} height={64}/><span>Menú Low Carb Latino</span></Link>
-        <button className="internal-avatar" type="button" onClick={() => setMessage("Los ajustes de cuenta se habilitarán al publicar.")} aria-label="Abrir ajustes de cuenta">A</button>
+        <button className="internal-avatar" type="button" onClick={() => setModal({ type: "account" })} aria-label="Abrir cuenta y privacidad">A</button>
       </header>
 
       {!online && <div className="internal-offline" role="status"><WifiOff/> Sin conexión. Puedes seguir marcando tu lista; guardaremos los cambios en este dispositivo.</div>}
@@ -324,7 +331,7 @@ export default function InternalApp({ demoMode, userId, userCreatedAt, initialDa
       </nav>
 
       <AnimatePresence>{message && <motion.div className="internal-toast" role="status" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}><Check/>{message}</motion.div>}</AnimatePresence>
-      <AnimatePresence>{modal && <InternalModal modal={modal} recipes={recipes} todayRecipe={todayRecipe} newItem={newItem} setNewItem={setNewItem} onClose={() => setModal(null)} onSwap={chooseSwap} onAddItem={addShoppingItem}/>}</AnimatePresence>
+      <AnimatePresence>{modal && <InternalModal modal={modal} recipes={recipes} todayRecipe={todayRecipe} newItem={newItem} setNewItem={setNewItem} demoMode={demoMode} onClose={() => setModal(null)} onSwap={chooseSwap} onAddItem={addShoppingItem}/>}</AnimatePresence>
     </div>
   );
 }
@@ -386,13 +393,119 @@ function RecipesView({ recipes, favorites, filter, search, onFilter, onSearch, o
   </>;
 }
 
-function InternalModal({ modal, recipes, todayRecipe, newItem, setNewItem, onClose, onSwap, onAddItem }: { modal: Exclude<ModalState, null>; recipes: Recipe[]; todayRecipe: Recipe; newItem: string; setNewItem: (value: string) => void; onClose: () => void; onSwap: (recipe: Recipe) => void; onAddItem: (event: FormEvent) => void }) {
-  return <motion.div className="internal-overlay" role="dialog" aria-modal="true" aria-label={modal.type === "recipe" ? modal.recipe.title : modal.type === "swap" ? "Sustituir cena" : "Añadir producto"} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}>
+function InternalModal({ modal, recipes, todayRecipe, newItem, setNewItem, demoMode, onClose, onSwap, onAddItem }: { modal: Exclude<ModalState, null>; recipes: Recipe[]; todayRecipe: Recipe; newItem: string; setNewItem: (value: string) => void; demoMode: boolean; onClose: () => void; onSwap: (recipe: Recipe) => void; onAddItem: (event: FormEvent) => void }) {
+  const label = modal.type === "recipe" ? modal.recipe.title : modal.type === "swap" ? "Sustituir cena" : modal.type === "account" ? "Cuenta y privacidad" : "Añadir producto";
+  return <motion.div className="internal-overlay" role="dialog" aria-modal="true" aria-label={label} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}>
     <motion.section className="internal-sheet" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }} transition={{ duration: 0.3, ease: EASE }}>
       <button className="internal-close" type="button" onClick={onClose} aria-label="Cerrar"><X/></button>
       {modal.type === "recipe" && <><p className="kicker">RECETA PASO A PASO</p><h2>{modal.recipe.title}</h2><div className="internal-sheet-meta"><span><Clock3/>{modal.recipe.minutes} min</span><span><Utensils/>{modal.recipe.servings} porciones</span></div><h3>Ingredientes</h3><ul>{modal.recipe.ingredients.map((ingredient) => <li key={ingredient}><Check/>{ingredient}</li>)}</ul><h3>Preparación</h3><ol>{modal.recipe.steps.map((step, index) => <li key={step}><span>{index + 1}</span>{step}</li>)}</ol></>}
       {modal.type === "swap" && <><p className="kicker">CAMBIO COMPATIBLE</p><h2>Otra cena, la semana intacta.</h2><p className="internal-sheet-intro">Conservamos {todayRecipe.servings} porciones y priorizamos ingredientes que ya están en tu compra.</p><div className="internal-swap-list">{recipes.filter((recipe) => recipe.id !== todayRecipe.id).slice(0, 3).map((recipe) => <button key={recipe.id} type="button" onClick={() => onSwap(recipe)}><RecipeVisual recipe={recipe} compact/><span><b>{recipe.title}</b><small>{recipe.minutes} min · {recipe.tags.join(" · ")}</small></span><ArrowRight/></button>)}</div></>}
       {modal.type === "add-item" && <><p className="kicker">EXTRA PARA TU CASA</p><h2>Añade lo que falta.</h2><p className="internal-sheet-intro">Este producto quedará en Despensa y podrás marcarlo como el resto.</p><form className="internal-add-form" onSubmit={onAddItem}><label htmlFor="new-shopping-item">Producto</label><input id="new-shopping-item" autoFocus value={newItem} onChange={(event) => setNewItem(event.target.value)} placeholder="Ej. café molido"/><button className="internal-primary" type="submit" disabled={!newItem.trim()}>Añadir a mi lista <Plus/></button></form></>}
+      {modal.type === "account" && <AccountPanel demoMode={demoMode}/>}
     </motion.section>
   </motion.div>;
+}
+
+function AccountPanel({ demoMode }: { demoMode: boolean }) {
+  const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [confirmation, setConfirmation] = useState("");
+  const [error, setError] = useState("");
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [supportCategory, setSupportCategory] = useState("access");
+  const [supportMessage, setSupportMessage] = useState("");
+  const [supportStatus, setSupportStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
+  const [supportReply, setSupportReply] = useState("");
+
+  async function downloadData() {
+    if (demoMode || exporting) return;
+    setExporting(true);
+    setError("");
+    try {
+      const response = await fetch("/api/privacy/export", { headers: { Accept: "application/json" } });
+      const serverData = await response.json() as Record<string, unknown> & { message?: string };
+      if (!response.ok) throw new Error(serverData.message ?? "No pudimos preparar la descarga.");
+      const deviceData = {
+        app: window.localStorage.getItem(STORAGE_KEY),
+        onboarding: window.localStorage.getItem(ONBOARDING_KEY),
+      };
+      const blob = new Blob([JSON.stringify({ ...serverData, device_data: deviceData }, null, 2)], { type: "application/json" });
+      const href = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = href;
+      anchor.download = `menu-low-carb-datos-${new Date().toISOString().slice(0, 10)}.json`;
+      anchor.click();
+      URL.revokeObjectURL(href);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "No pudimos preparar la descarga.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function deleteAccount() {
+    if (demoMode || deleting || confirmation !== DELETE_CONFIRMATION) return;
+    setDeleting(true);
+    setError("");
+    try {
+      const response = await fetch("/api/privacy/delete", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirmation }) });
+      const body = await response.json() as { message?: string };
+      if (!response.ok) throw new Error(body.message ?? "No pudimos eliminar la cuenta.");
+      window.localStorage.removeItem(STORAGE_KEY);
+      window.localStorage.removeItem(ONBOARDING_KEY);
+      window.location.assign("/?account=deleted");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "No pudimos eliminar la cuenta.");
+      setDeleting(false);
+    }
+  }
+
+  async function signOut() {
+    if (demoMode) { window.location.assign("/"); return; }
+    await createSupabaseBrowserClient().auth.signOut();
+    window.location.assign("/login");
+  }
+
+  async function sendSupport(event: FormEvent) {
+    event.preventDefault();
+    if (demoMode || supportStatus === "sending" || supportMessage.trim().length < 10) return;
+    setSupportStatus("sending");
+    setSupportReply("");
+    const response = await fetch("/api/support", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ category: supportCategory, message: supportMessage }) });
+    const body = await response.json().catch(() => null) as { message?: string } | null;
+    setSupportReply(body?.message ?? (response.ok ? "Solicitud recibida." : "No pudimos enviar la solicitud."));
+    setSupportStatus(response.ok ? "success" : "error");
+    if (response.ok) setSupportMessage("");
+  }
+
+  return <div className="internal-account">
+    <p className="kicker">CUENTA Y PRIVACIDAD</p>
+    <h2>Tú decides sobre tus datos.</h2>
+    <p className="internal-sheet-intro">Descarga una copia, administra tu suscripción o elimina la cuenta sin buscar ayuda.</p>
+    <div className="internal-account-actions">
+      <button type="button" onClick={downloadData} disabled={demoMode || exporting}><Download/><span><b>{exporting ? "Preparando descarga…" : "Descargar mis datos"}</b><small>Incluye tu cuenta, preferencias, semana y actividad.</small></span><ArrowRight/></button>
+      <a href="https://consumer.hotmart.com/purchase" target="_blank" rel="noreferrer"><ExternalLink/><span><b>Administrar mi suscripción</b><small>Cancela o cambia el pago en el portal seguro de Hotmart.</small></span><ArrowRight/></a>
+      <button type="button" onClick={signOut}><LogOut/><span><b>Cerrar sesión</b><small>Tu cuenta y tu semana permanecen guardadas.</small></span><ArrowRight/></button>
+    </div>
+    <div className="internal-account-legal"><Link href="/privacidad">Privacidad</Link><Link href="/terminos">Términos</Link><Link href="/reembolso">Cancelación y reembolsos</Link></div>
+    <section className="internal-support-zone">
+      <button type="button" className="internal-support-toggle" onClick={() => setSupportOpen((value) => !value)} aria-expanded={supportOpen}><MessageCircle/> {supportOpen ? "Cerrar ayuda" : "Necesito ayuda"}</button>
+      {supportOpen && <form className="internal-support-form" onSubmit={sendSupport}>
+        <p>Cuéntanos qué ocurrió. Tu solicitud queda privada y el propietario la revisará antes de 24 horas hábiles.</p>
+        <label htmlFor="support-category">Tipo de ayuda</label>
+        <select id="support-category" value={supportCategory} onChange={(event) => setSupportCategory(event.target.value)}><option value="access">No puedo entrar</option><option value="billing">Compra o suscripción</option><option value="product">Menú, receta o lista</option><option value="privacy">Mis datos o privacidad</option></select>
+        <label htmlFor="support-message">¿Qué pasó?</label>
+        <textarea id="support-message" rows={4} minLength={10} maxLength={1000} value={supportMessage} onChange={(event) => setSupportMessage(event.target.value)} placeholder="Ej.: mi compra fue aprobada, pero la app todavía muestra el paywall."/>
+        {supportReply && <p className={`internal-support-reply ${supportStatus}`} role={supportStatus === "error" ? "alert" : "status"}>{supportReply}</p>}
+        <button type="submit" disabled={demoMode || supportStatus === "sending" || supportMessage.trim().length < 10}>{supportStatus === "sending" ? "Enviando…" : "Enviar solicitud privada"}</button>
+      </form>}
+    </section>
+    <section className="internal-danger-zone">
+      <button type="button" className="internal-danger-toggle" onClick={() => { setShowDelete((value) => !value); setError(""); }}><Trash2/> Eliminar mi cuenta</button>
+      {showDelete && <div className="internal-delete-confirm"><p>Esta acción borra tu cuenta, preferencias, semanas y actividad. No cancela por sí sola la suscripción de Hotmart.</p><label htmlFor="delete-confirmation">Escribe <b>{DELETE_CONFIRMATION}</b></label><input id="delete-confirmation" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="off"/><button type="button" disabled={demoMode || deleting || confirmation !== DELETE_CONFIRMATION} onClick={deleteAccount}>{deleting ? "Eliminando…" : "Eliminar definitivamente"}</button></div>}
+    </section>
+    {demoMode && <p className="internal-account-note">Las acciones de datos se activan con una cuenta real.</p>}
+    {error && <p className="internal-account-error" role="alert">{error}</p>}
+  </div>;
 }

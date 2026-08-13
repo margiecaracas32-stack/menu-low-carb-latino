@@ -415,6 +415,19 @@
 .admin-issues article a { display: inline-flex; align-items: center; gap: 5px; color: var(--admin-forest); font-size: 11px; font-weight: 800; }
 .admin-issues article a svg { width: 14px; }
 
+.admin-support-tickets { padding: 22px; }
+.admin-support-list { display: grid; gap: 10px; }
+.admin-support-list article { display: grid; gap: 9px; padding: 16px; background: var(--admin-cream); border: 1px solid var(--admin-line); border-radius: 14px; }
+.admin-support-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.admin-support-meta span { padding: 5px 8px; color: var(--admin-forest); background: var(--admin-mint); border-radius: 999px; font-size: 10px; font-weight: 850; text-transform: uppercase; letter-spacing: .08em; }
+.admin-support-meta time { color: var(--admin-muted); font-size: 11px; }
+.admin-support-list h3 { margin: 0; overflow-wrap: anywhere; font-size: 14px; }
+.admin-support-list p { margin: 0; color: var(--admin-muted); font-size: 13px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.admin-support-list button { display: inline-flex; min-height: 42px; width: fit-content; align-items: center; gap: 7px; padding: 9px 12px; color: #fffaf2; background: var(--admin-forest); border: 0; border-radius: 10px; font: inherit; font-size: 11px; font-weight: 850; cursor: pointer; }
+.admin-support-list button svg { width: 16px; }
+.admin-support-list button:disabled { cursor: wait; opacity: .58; }
+.admin-support-message { padding: 10px 12px; color: var(--admin-forest); background: var(--admin-mint); border-radius: 10px; font-size: 12px; font-weight: 750; }
+
 .admin-ai-explainer { color: #fffaf2; background: var(--admin-navy); border-color: var(--admin-navy); }
 .admin-ai-explainer > svg { width: 52px; height: 52px; flex: 0 0 auto; color: #c9d95c; }
 .admin-ai-explainer p { color: #c9d95c; }
@@ -494,6 +507,9 @@
   .admin-funnel > div > div { grid-template-columns: 1fr; gap: 5px; }
   .admin-funnel b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .admin-manual-access { padding: 18px; }
+  .admin-support-tickets { padding: 17px; }
+  .admin-support-meta { align-items: flex-start; flex-direction: column; gap: 6px; }
+  .admin-support-list button { width: 100%; justify-content: center; }
   .admin-manual-heading { display: grid; gap: 16px; }
   .admin-manual-heading > button { width: 100%; }
   .admin-manual-form { grid-template-columns: 1fr; padding: 15px; }

@@ -5,7 +5,7 @@ import Image from "next/image";
 import {
   AlertTriangle, ArrowDownRight, ArrowRight, Bot, BrainCircuit, CheckCircle2,
   CircleDollarSign, Clock3, CreditCard, DollarSign, ExternalLink, HeartPulse,
-  Ban, CalendarDays, Menu, ReceiptText, RefreshCw, Send, ShieldCheck, Sparkles,
+  Ban, CalendarDays, Menu, MessageCircle, ReceiptText, RefreshCw, Send, ShieldCheck, Sparkles,
   TriangleAlert, UserCheck, UserPlus, Users, WalletCards, X, Zap,
 } from "lucide-react";
 import type { AdminDashboardData, AdminSection, Notice } from "./admin-data";
@@ -315,22 +315,63 @@ function ManualAccessManager({ grants, configured }: { grants: ManualGrant[]; co
 
 function ErrorsSection({ data }: { data: AdminDashboardData }) {
   const errors = data.errors;
-  const healthy = errors.open === 0 && errors.webhookFailures === 0;
+  const healthy = errors.open === 0 && errors.webhookFailures === 0 && errors.supportOpen === 0;
   return <>
     <section className="admin-health-hero" data-healthy={healthy && errors.open != null}>
       <div className="admin-health-icon">{healthy && errors.open != null ? <CheckCircle2/> : errors.open == null ? <Clock3/> : <TriangleAlert/>}</div>
       <div><p>ESTADO GENERAL</p><h2>{errors.open == null ? "Salud todavía no medida" : healthy ? "Todo funciona con normalidad" : "Hay incidencias que necesitan atención"}</h2><span>{errors.open == null ? "Sentry y los registros se conectarán antes de publicar." : healthy ? "No hay errores abiertos ni fallos de pago registrados." : "Revisa primero los problemas que afectan más usuarios."}</span></div>
     </section>
-    <div className="admin-metric-grid three">
+    <div className="admin-metric-grid four">
       <MetricCard label="Alertas abiertas" value={formatNumber(errors.open)} detail="Problemas sin resolver." icon={TriangleAlert}/>
       <MetricCard label="Usuarios afectados" value={formatNumber(errors.affectedUsers)} detail="Personas distintas con errores." icon={Users}/>
       <MetricCard label="Confirmaciones de pago fallidas" value={formatNumber(errors.webhookFailures)} detail={errors.lastWebhookAt ? `Último aviso: ${new Intl.DateTimeFormat("es", { dateStyle: "medium", timeStyle: "short", timeZone: "America/New_York" }).format(new Date(errors.lastWebhookAt))}` : "Conexión de Hotmart no medida."} icon={RefreshCw}/>
+      <MetricCard label="Solicitudes de ayuda" value={formatNumber(errors.supportOpen)} detail="Clientes esperando respuesta." icon={MessageCircle}/>
     </div>
     <section className="admin-card admin-issues">
       <SectionTitle eyebrow="PRIORIDAD POR IMPACTO" title="Problemas agrupados"/>
       {errors.groups.length ? <div>{errors.groups.map((group) => <article key={group.label}><div><TriangleAlert/><span><b>{group.label}</b><small>{group.users} usuarios · {group.count} veces</small></span></div>{group.sentryUrl && <a href={group.sentryUrl} target="_blank" rel="noreferrer">Ver detalle técnico <ExternalLink/></a>}</article>)}</div> : <EmptyData title="No hay errores registrados">Cuando se conecte Sentry y el registro del servidor, aquí aparecerán agrupados por impacto.</EmptyData>}
     </section>
+    <SupportTickets tickets={errors.supportTickets}/>
   </>;
+}
+
+type SupportTicket = AdminDashboardData["errors"]["supportTickets"][number];
+
+function SupportTickets({ tickets }: { tickets: SupportTicket[] }) {
+  const [resolving, setResolving] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
+  const openTickets = tickets.filter((ticket) => ticket.status === "open");
+  const categoryLabel: Record<string, string> = { access: "Acceso", billing: "Pago", product: "Producto", privacy: "Privacidad" };
+
+  async function resolve(ticketId: string) {
+    setResolving(ticketId);
+    setMessage("");
+    try {
+      const result = await fetch("/api/support", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticketId }),
+      });
+      const payload = await result.json() as { message?: string };
+      if (!result.ok) throw new Error(payload.message || "No se pudo cerrar la solicitud.");
+      setMessage("Solicitud marcada como resuelta.");
+      window.setTimeout(() => window.location.reload(), 650);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "No se pudo cerrar la solicitud.");
+      setResolving(null);
+    }
+  }
+
+  return <section className="admin-card admin-support-tickets">
+    <SectionTitle eyebrow="RESPONDER EN 24 HORAS HÁBILES" title="Solicitudes privadas de ayuda"/>
+    {message && <p className="admin-support-message" role="status">{message}</p>}
+    {openTickets.length ? <div className="admin-support-list">{openTickets.map((ticket) => <article key={ticket.id}>
+      <div className="admin-support-meta"><span>{categoryLabel[ticket.category] ?? ticket.category}</span><time dateTime={ticket.createdAt}>{new Intl.DateTimeFormat("es", { dateStyle: "medium", timeStyle: "short", timeZone: "America/New_York" }).format(new Date(ticket.createdAt))}</time></div>
+      <h3>{ticket.email}</h3>
+      <p>{ticket.message}</p>
+      <button type="button" disabled={resolving != null} onClick={() => resolve(ticket.id)}><CheckCircle2/>{resolving === ticket.id ? "Cerrando…" : "Marcar como resuelta"}</button>
+    </article>)}</div> : <EmptyData title="Nadie está esperando respuesta">Cuando una persona pida ayuda desde su cuenta, aparecerá aquí de forma privada.</EmptyData>}
+  </section>;
 }
 
 function AiSection({ data }: { data: AdminDashboardData }) {

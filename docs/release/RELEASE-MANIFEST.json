@@ -1,6 +1,6 @@
 {
   "app": "Menu Low Carb Latino",
-  "audit_date": "2026-08-10",
+  "audit_date": "2026-08-11",
   "status": "blocked",
   "release_commit": null,
   "production_url": "https://menu.centrodigitalglobal.online",
@@ -23,20 +23,27 @@
     "20260807200000_app_core.sql",
     "20260808200000_admin_backoffice.sql",
     "20260809160000_preserve_manual_access_audit.sql",
-    "20260809200000_hotmart_webhook.sql"
+    "20260809200000_hotmart_webhook.sql",
+    "20260811130000_personalized_week.sql",
+    "20260811180000_product_analytics.sql",
+    "20260811210000_privacy_operations.sql"
   ],
   "verified": [
     "monthly trial activation and cancellation",
     "passwordless email delivery",
     "server-side admin authorization",
     "webhook catalog and idempotency tests",
-    "lint, TypeScript, production build and dependency audit"
+    "60-recipe personalized weekly plan and shopping list",
+    "event and error instrumentation with QA exclusion",
+    "server-authorized privacy export, deletion and private support implemented locally",
+    "lint, TypeScript and 19 automated tests"
   ],
   "blockers": [
-    "paid app does not consume onboarding choices",
+    "privacy migration and controlled end-to-end privacy test pending",
+    "backup restore exercise and measured RPO/RTO pending",
+    "professional legal review pending",
     "annual and paid renewal payment cases not certified",
-    "Sentry and client event instrumentation not connected",
-    "privacy export/deletion and professional legal review pending",
-    "real unit economics not measured"
+    "real unit economics remain unmeasured until recurring revenue exists",
+    "post-support production build and deployment verification pending"
   ]
 }
