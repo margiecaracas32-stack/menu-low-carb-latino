@@ -2,7 +2,7 @@
   "app": "Menu Low Carb Latino",
   "audit_date": "2026-08-11",
   "status": "blocked",
-  "release_commit": null,
+  "release_commit": "2f9350d",
   "production_url": "https://menu.centrodigitalglobal.online",
   "deployment_provider": "Vercel",
   "database_project_ref": "enwoecdftalhqzijrguv",

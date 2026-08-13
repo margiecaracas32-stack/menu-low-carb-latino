@@ -16,6 +16,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { createSupabaseBrowserClient } from "../../lib/supabase/client";
+import { safeAuthDestination } from "../../lib/auth-destination";
 
 type Status = "idle" | "sending" | "sent" | "verified" | "error";
 
@@ -26,10 +27,12 @@ export default function LoginPage() {
   const [message, setMessage] = useState("");
   const [online, setOnline] = useState(true);
   const [countdown, setCountdown] = useState(0);
+  const [destination, setDestination] = useState("/app");
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       const params = new URLSearchParams(window.location.search);
+      setDestination(safeAuthDestination(params.get("next")));
       if (params.get("verified") === "1") setStatus("verified");
       if (params.get("access_error") === "1") {
         setStatus("error");
@@ -68,10 +71,11 @@ export default function LoginPage() {
 
   async function requestMagicLink() {
     const supabase = createSupabaseBrowserClient();
+    const next = safeAuthDestination(new URLSearchParams(window.location.search).get("next"));
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim().toLowerCase(),
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
         shouldCreateUser: false,
       },
     });
@@ -140,7 +144,7 @@ export default function LoginPage() {
               <p className="kicker">ACCESO VERIFICADO</p>
               <h1>Tu sesión está protegida.</h1>
               <p className="login-intro">Confirmamos tu correo y guardamos la sesión de forma segura. Tu semana estará disponible al entrar al producto.</p>
-              <Link className="login-primary" href="/app">Entrar a mi menú <ArrowRight/></Link>
+              <Link className="login-primary" href={destination}>{destination.startsWith("/admin") ? "Entrar al panel" : "Entrar a mi menú"} <ArrowRight/></Link>
             </motion.section>
           ) : status !== "sent" ? (
             <motion.section className="login-card" key="form" initial={{ opacity: 0, y: reduceMotion ? 0 : 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>

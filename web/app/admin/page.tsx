@@ -18,7 +18,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    if (process.env.NODE_ENV === "production") redirect("/login?next=%2Fadmin");
+    if (process.env.NODE_ENV === "production") redirect(`/login?next=${encodeURIComponent(`/admin?section=${initialSection}`)}`);
     return <AdminDashboard data={await loadAdminDashboard(supabase)} initialSection={initialSection} previewMode manualAccessConfigured={false}/>;
   }
 
