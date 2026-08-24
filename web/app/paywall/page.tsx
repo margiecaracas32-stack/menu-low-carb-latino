@@ -24,6 +24,7 @@ const CHECKOUT_URLS: Record<Plan, string> = {
   monthly: "https://pay.hotmart.com/R107087996E?off=2yk1rcvg",
   annual: "https://pay.hotmart.com/R107087996E?off=1x7js0ul",
 };
+const PILOT_MONTHLY_ONLY = true;
 const ANONYMOUS_ID_KEY = "menu-low-carb-anonymous-id-v1";
 const CHECKOUT_ATTEMPT_KEY = "menu-low-carb-checkout-attempt-v1";
 
@@ -35,7 +36,7 @@ const benefits = [
 
 export default function PaywallPage() {
   const reduceMotion = useReducedMotion();
-  const [plan, setPlan] = useState<Plan>("annual");
+  const [plan, setPlan] = useState<Plan>("monthly");
   const [answers, setAnswers] = useState<SavedAnswers>({});
   const [hydrated, setHydrated] = useState(false);
   const [online, setOnline] = useState(true);
@@ -158,14 +159,14 @@ export default function PaywallPage() {
         </motion.div>
 
         <motion.aside ref={offerRef} className="offer-card" initial={{ opacity: 0, y: reduceMotion ? 0 : 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reduceMotion ? 0 : .18 }}>
-          <p className="offer-eyebrow">ELIGE CÓMO CONTINUAR</p>
+          <p className="offer-eyebrow">PLAN CERTIFICADO PARA EL PILOTO</p>
           <div className="plan-options" role="radiogroup" aria-label="Duración del plan">
-            <button type="button" role="radio" aria-checked={plan === "annual"} onClick={() => { setPlan("annual"); track("paywall_plan_elegido", { plan_elegido: "annual" }, "plan:annual"); }}>
+            {!PILOT_MONTHLY_ONLY && <button type="button" role="radio" aria-checked={plan === "annual"} onClick={() => { setPlan("annual"); track("paywall_plan_elegido", { plan_elegido: "annual" }, "plan:annual"); }}>
               <span className="saving-badge">2 MESES GRATIS</span>
               <span className="plan-name"><b>Anual</b><small>Mejor valor</small></span>
               <span className="plan-price"><b>US$5.83</b><small>/mes</small></span>
               <span className="plan-total">Después de la prueba: US$69.90 al año</span>
-            </button>
+            </button>}
             <button type="button" role="radio" aria-checked={plan === "monthly"} onClick={() => { setPlan("monthly"); track("paywall_plan_elegido", { plan_elegido: "monthly" }, "plan:monthly"); }}>
               <span className="plan-name"><b>Mensual</b><small>Flexibilidad mes a mes</small></span>
               <span className="plan-price"><b>US$6.99</b><small>/mes</small></span>
