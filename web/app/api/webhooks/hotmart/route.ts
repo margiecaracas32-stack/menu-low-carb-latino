@@ -70,7 +70,12 @@ async function ensureUser(event: NormalizedHotmartEvent) {
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin.auth.admin.createUser({
     email: event.email,
-    email_confirm: false,
+    // Hotmart already authenticated the purchase event. Confirming the
+    // server-created identity lets the next step send our Spanish magic-link
+    // template instead of Supabase's generic signup-confirmation email.
+    // The buyer still proves control of the address by opening that one-time
+    // magic link before a session is created.
+    email_confirm: true,
     user_metadata: { full_name: event.name, source: "hotmart" },
   });
   if (error || !data.user) throw error ?? new Error("auth_user_creation_failed");

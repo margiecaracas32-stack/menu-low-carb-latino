@@ -1,9 +1,17 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { isFreshHotmartEvent, parseHotmartEvent, verifyHotmartToken } from "../lib/hotmart-webhook.ts";
 
 const now = Date.now();
 const catalog = { productId: "9001", monthlyPlanId: "101", annualPlanId: "102" };
+
+test("new Hotmart buyers receive the branded magic link instead of a signup confirmation", () => {
+  const route = readFileSync(new URL("../app/api/webhooks/hotmart/route.ts", import.meta.url), "utf8");
+  assert.match(route, /email_confirm:\s*true/);
+  assert.match(route, /signInWithOtp\([\s\S]*shouldCreateUser:\s*false/);
+  assert.doesNotMatch(route, /email_confirm:\s*false/);
+});
 
 function purchase(overrides: Record<string, unknown> = {}) {
   return {
