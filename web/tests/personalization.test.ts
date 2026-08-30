@@ -12,8 +12,35 @@ test("el catálogo vendible contiene sesenta recetas únicas y completas", () =>
     assert.ok(recipe.description.length >= 20);
     assert.ok(recipe.ingredients.length >= 4);
     assert.ok(recipe.steps.length >= 3);
+    assert.ok(recipe.steps.every((step) => step.length >= 70), `${recipe.id} conserva una instrucción demasiado breve`);
+    assert.ok(recipe.steps.every((step) => /\b\d+\s*(?:a\s*\d+\s*)?minutos?\b/i.test(step)), `${recipe.id} tiene un paso sin tiempo orientativo`);
     assert.ok(recipe.shopping.length >= 4);
   }
+});
+
+test("la receta señalada explica el sofrito y el punto del huevo", () => {
+  const recipe = RECIPES.find((entry) => entry.id === "huevos-tomate");
+  assert.ok(recipe);
+  assert.match(recipe.steps[0], /5 minutos/);
+  assert.match(recipe.steps[0], /pimiento esté suave/);
+  assert.match(recipe.steps[2], /claras estén firmes/);
+});
+
+test("las cantidades usan medidas culinarias reales y no unidades genéricas", () => {
+  for (const recipe of RECIPES) {
+    assert.ok(recipe.ingredients.every((ingredient) => /^\d+(?:[.,]\d+)?\s/.test(ingredient)), `${recipe.id} conserva un ingrediente sin cantidad`);
+    assert.equal(recipe.ingredients.some((ingredient) => /\bunidad(?:es)? de\b/i.test(ingredient)), false, `${recipe.id} muestra una unidad genérica`);
+  }
+
+  const recipesWithOlives = RECIPES.filter((recipe) => recipe.shopping.some((item) => item.key === "aceitunas"));
+  assert.equal(recipesWithOlives.length, 3);
+  for (const recipe of recipesWithOlives) assert.ok(recipe.ingredients.includes("80 g de aceitunas"));
+
+  const eggs = RECIPES.find((recipe) => recipe.id === "huevos-tomate");
+  assert.ok(eggs?.ingredients.includes("1 lata de tomate triturado"));
+  const soup = RECIPES.find((recipe) => recipe.id === "sopa-pollo");
+  assert.ok(soup?.ingredients.includes("4 tallos de apio"));
+  assert.ok(soup?.ingredients.includes("15 g de cilantro"));
 });
 
 test("cada combinación crítica conserva variedad suficiente", () => {

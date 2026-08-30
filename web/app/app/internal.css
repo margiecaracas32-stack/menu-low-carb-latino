@@ -348,12 +348,61 @@
 }
 
 .internal-week-focus {
+  display: grid;
+  grid-template-columns: minmax(112px, 38%) minmax(0, 1fr);
+  align-items: center;
+  gap: 20px;
   margin-top: 16px;
   padding: 24px;
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 24px;
   box-shadow: var(--shadow-sm);
+}
+
+.internal-week-focus .internal-plate-art,
+.internal-week-focus .internal-food-photo {
+  min-height: 180px;
+  height: 100%;
+  border-radius: 18px;
+}
+
+.internal-week-focus-copy {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+  align-content: center;
+}
+
+.internal-week-focus-copy > p,
+.internal-week-focus-copy > h2 {
+  margin: 0;
+}
+
+.internal-week-focus-meta {
+  display: block;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.internal-week-focus-action {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 10px 14px;
+  color: var(--green-dark);
+  background: transparent;
+  border: 1px solid rgb(36 96 71 / 42%);
+  border-radius: 12px;
+  font: inherit;
+  font-weight: 700;
+}
+
+.internal-week-focus-action svg {
+  width: 18px;
 }
 
 .internal-week-summary {
@@ -752,6 +801,40 @@
   line-height: 1.6;
 }
 
+.internal-sheet .internal-recipe-steps {
+  display: grid;
+  gap: 14px;
+  margin-top: 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.internal-recipe-steps li {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+
+.internal-recipe-steps li > span {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  color: var(--paper);
+  background: var(--green);
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.internal-recipe-steps li > p {
+  margin: 2px 0 0;
+  color: var(--ink);
+  line-height: 1.55;
+}
+
 .privacy-gate {
   min-height: 100dvh;
   display: grid;
@@ -940,6 +1023,16 @@
   .internal-meal-copy,
   .internal-week-focus {
     padding: 20px;
+  }
+
+  .internal-week-focus {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .internal-week-focus .internal-plate-art,
+  .internal-week-focus .internal-food-photo {
+    min-height: 220px;
   }
 
   .internal-actions > * {
