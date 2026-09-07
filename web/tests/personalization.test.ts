@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { derivePersonalizedPlan, RECIPES, validateAnswers } from "../app/app/recipe-catalog.ts";
+import { derivePersonalizedPlan, RECIPES, scaleIngredientDisplay, validateAnswers } from "../app/app/recipe-catalog.ts";
 
 const fixedDate = new Date("2026-08-11T12:00:00-04:00");
 
@@ -41,6 +41,16 @@ test("las cantidades usan medidas culinarias reales y no unidades genéricas", (
   const soup = RECIPES.find((recipe) => recipe.id === "sopa-pollo");
   assert.ok(soup?.ingredients.includes("4 tallos de apio"));
   assert.ok(soup?.ingredients.includes("15 g de cilantro"));
+});
+
+test("el ingrediente escalado concuerda en singular y plural", () => {
+  assert.equal(scaleIngredientDisplay("2 limones", 2), "1 limón");
+  assert.equal(scaleIngredientDisplay("2 calabacines", 2), "1 calabacín");
+  assert.equal(scaleIngredientDisplay("2 dientes de ajo", 2), "1 diente de ajo");
+  assert.equal(scaleIngredientDisplay("2 aguacates", 2), "1 aguacate");
+  assert.equal(scaleIngredientDisplay("2 tomates", 2), "1 tomate");
+  assert.equal(scaleIngredientDisplay("1 cebolla", 5), "2 cebollas");
+  assert.equal(scaleIngredientDisplay("4 latas de atún", 2), "2 latas de atún");
 });
 
 test("cada combinación crítica conserva variedad suficiente", () => {

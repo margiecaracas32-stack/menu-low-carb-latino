@@ -77,6 +77,30 @@ const UNIT_NOUNS: Record<string, [string, string]> = {
   tomate: ["tomate", "tomates"],
 };
 
+const COUNTABLE_INGREDIENTS: Array<[singular: string, plural: string]> = [
+  ...Object.values(UNIT_NOUNS),
+  ...Object.values(NATURAL_UNITS),
+];
+
+function agreeIngredientNumber(description: string, amount: number) {
+  for (const [singular, plural] of COUNTABLE_INGREDIENTS) {
+    const current = amount === 1 ? plural : singular;
+    const replacement = amount === 1 ? singular : plural;
+    if (description === current || description.startsWith(`${current} `)) {
+      return `${replacement}${description.slice(current.length)}`;
+    }
+  }
+  return description;
+}
+
+export function scaleIngredientDisplay(ingredient: string, servings: number) {
+  const match = ingredient.match(/^(\d+(?:[.,]\d+)?)\s+(.+)$/);
+  if (!match || servings === 4) return ingredient;
+  const raw = Number(match[1].replace(",", ".")) * servings / 4;
+  const amount = /^(g|ml)\b/i.test(match[2]) ? Math.max(10, Math.ceil(raw / 10) * 10) : Math.max(1, Math.ceil(raw));
+  return `${amount} ${agreeIngredientNumber(match[2], amount)}`;
+}
+
 const s = (key: string, label: string, quantity: number, unit: ShoppingIngredient["unit"], aisle: Aisle): ShoppingIngredient => {
   const measure = SEMANTIC_MEASURES[key];
   return {

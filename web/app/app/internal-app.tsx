@@ -29,7 +29,7 @@ import {
   WifiOff,
   X,
 } from "lucide-react";
-import { buildDemoPlan, RECIPES, type Recipe, type ShoppingItem, type WeekMeal } from "./recipe-catalog";
+import { buildDemoPlan, RECIPES, scaleIngredientDisplay, type Recipe, type ShoppingItem, type WeekMeal } from "./recipe-catalog";
 import type { PersonalizedAppData } from "../../lib/personalized-app";
 import { reportProductError, track, trackDaily } from "../../lib/analytics";
 import { createSupabaseBrowserClient } from "../../lib/supabase/client";
@@ -57,14 +57,6 @@ const itemVariants: Variants = {
 
 function recipeById(id: string, recipes: Recipe[]) {
   return recipes.find((recipe) => recipe.id === id) ?? recipes[0];
-}
-
-function scaleIngredient(ingredient: string, servings: number) {
-  const match = ingredient.match(/^(\d+(?:[.,]\d+)?)\s+(.+)$/);
-  if (!match || servings === 4) return ingredient;
-  const raw = Number(match[1].replace(",", ".")) * servings / 4;
-  const amount = /^(g|ml)\b/i.test(match[2]) ? Math.max(10, Math.ceil(raw / 10) * 10) : Math.max(1, Math.ceil(raw));
-  return `${amount} ${match[2]}`;
 }
 
 function CountUp({ value }: { value: number }) {
@@ -109,7 +101,7 @@ function LoadingView() {
 export default function InternalApp({ demoMode, userId, userCreatedAt, initialData }: { demoMode: boolean; userId?: string; userCreatedAt?: string; initialData: PersonalizedAppData | null }) {
   const reduceMotion = useReducedMotion();
   const householdSize = initialData?.householdSize ?? DEMO_PLAN.householdSize;
-  const recipes = useMemo(() => RECIPES.map((recipe) => ({ ...recipe, servings: householdSize, ingredients: recipe.ingredients.map((item) => scaleIngredient(item, householdSize)) })), [householdSize]);
+  const recipes = useMemo(() => RECIPES.map((recipe) => ({ ...recipe, servings: householdSize, ingredients: recipe.ingredients.map((item) => scaleIngredientDisplay(item, householdSize)) })), [householdSize]);
   const week = initialData?.week ?? DEMO_PLAN.week;
   const baseShoppingItems = initialData?.shoppingItems ?? DEMO_PLAN.shoppingItems;
   const currentDate = new Date();
@@ -348,7 +340,7 @@ function TodayView({ recipe, dateLabel, completion, completed, onRecipe, onSwap,
       <div className="internal-meal-copy"><p>MÉTODO SEMANA RESUELTA</p><h2>{recipe.title}</h2><span>{recipe.description}</span><button className="internal-primary" type="button" onClick={onRecipe}>Ver receta <ArrowRight/></button></div>
     </motion.section>
     <motion.section className="internal-progress-card" variants={itemVariants}>
-      <div><span>Semana en marcha</span><strong><CountUp value={Math.round(completion / 14.3)}/> de 7 cenas</strong></div><ProgressBar value={completion} label="Progreso semanal"/>
+      <div className="internal-progress-row"><span>Semana en marcha</span><strong><CountUp value={Math.round(completion / 14.3)}/> de 7 cenas</strong></div><ProgressBar value={completion} label="Progreso semanal"/>
       <p>{completion < 60 ? "Cada comida marcada mejora la próxima semana." : "Ya resolviste más de la mitad de la semana."}</p>
     </motion.section>
     <motion.div className="internal-actions" variants={itemVariants}>
@@ -375,10 +367,10 @@ function ShoppingView({ items, checkedItems, progress, onToggle, onAdd }: { item
   const aisles: ShoppingItem["aisle"][] = ["Vegetales", "Proteínas", "Despensa"];
   return <>
     <ScreenHeading eyebrow="COMPRA CONSOLIDADA" title="Una lista, sin duplicados." description="Agrupada por pasillos para terminar el mercado más rápido."/>
-    <motion.section className="internal-shopping-progress" variants={itemVariants}><div><span>Productos encontrados</span><strong><CountUp value={checkedItems.length}/> de {items.length}</strong></div><ProgressBar value={progress} label="Progreso de compra"/><p>{progress === 100 ? "La compra de esta semana está completa." : `${items.length - checkedItems.length} productos pendientes.`}</p></motion.section>
+    <motion.section className="internal-shopping-progress" variants={itemVariants}><div className="internal-progress-row"><span>Productos encontrados</span><strong><CountUp value={checkedItems.length}/> de {items.length}</strong></div><ProgressBar value={progress} label="Progreso de compra"/><p>{progress === 100 ? "La compra de esta semana está completa." : `${items.length - checkedItems.length} productos pendientes.`}</p></motion.section>
     <motion.div className="internal-list-heading" variants={itemVariants}><h2>Tu recorrido</h2><button type="button" onClick={onAdd}><Plus/> Añadir</button></motion.div>
     <motion.div className="internal-shopping-groups" variants={listVariants}>
-      {aisles.map((aisle) => <motion.section key={aisle} variants={itemVariants}><header><h3>{aisle}</h3><span>{items.filter((item) => item.aisle === aisle && !checkedItems.includes(item.id)).length} pendientes</span></header><ul>{items.filter((item) => item.aisle === aisle).map((item) => { const checked = checkedItems.includes(item.id); return <li key={item.id}><button type="button" onClick={() => onToggle(item.id)} aria-pressed={checked}><i>{checked && <Check/>}</i><span><b>{item.label}</b><small>{item.amount}</small></span></button></li>; })}</ul></motion.section>)}
+      {aisles.map((aisle) => <motion.section className="internal-shopping-group" key={aisle} variants={itemVariants}><header><h3>{aisle}</h3><span>{items.filter((item) => item.aisle === aisle && !checkedItems.includes(item.id)).length} pendientes</span></header><ul>{items.filter((item) => item.aisle === aisle).map((item) => { const checked = checkedItems.includes(item.id); return <li key={item.id}><button className="internal-shopping-item" data-checked={checked} type="button" onClick={() => onToggle(item.id)} aria-pressed={checked}><i>{checked && <Check/>}</i><span><b>{item.label}</b><small>{item.amount}</small></span></button></li>; })}</ul></motion.section>)}
     </motion.div>
   </>;
 }

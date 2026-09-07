@@ -259,12 +259,24 @@
   border-radius: 20px;
 }
 
+.internal-progress-card,
+.internal-shopping-progress {
+  display: grid;
+  gap: 12px;
+}
+
+.internal-progress-card > p,
+.internal-shopping-progress > p {
+  margin: 0;
+  line-height: 1.5;
+}
+
 .internal-progress-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 12px;
+  margin-bottom: 0;
 }
 
 .internal-progress-row strong {
@@ -461,22 +473,57 @@
 
 .internal-shopping-group h3 {
   margin: 0;
-  padding: 14px 16px;
   color: var(--green-dark);
-  background: rgb(201 217 92 / 18%);
   font-size: 14px;
   letter-spacing: 0.03em;
 }
 
+.internal-shopping-group header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  background: rgb(201 217 92 / 18%);
+}
+
+.internal-shopping-group header span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.internal-shopping-group ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .internal-shopping-item {
+  width: 100%;
   display: grid;
-  grid-template-columns: 24px 1fr auto;
+  grid-template-columns: 24px minmax(0, 1fr);
   align-items: center;
   gap: 12px;
   min-height: 56px;
   padding: 10px 16px;
   border-top: 1px solid rgb(220 205 186 / 62%);
   cursor: pointer;
+  color: var(--ink);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+}
+
+.internal-shopping-item > span {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+}
+
+.internal-shopping-item b,
+.internal-shopping-item small {
+  display: block;
 }
 
 .internal-shopping-item input {
@@ -487,6 +534,7 @@
 
 .internal-shopping-item small {
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .internal-shopping-item[data-checked="true"] span {
@@ -917,10 +965,10 @@
 }
 
 .internal-swap-list button {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(108px, 42%) minmax(0, 1fr) 20px;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
   min-height: 56px;
   padding: 12px 16px;
   color: var(--ink);
@@ -930,6 +978,38 @@
   font: inherit;
   font-weight: 700;
   text-align: left;
+}
+
+.internal-swap-list .internal-plate-art,
+.internal-swap-list .internal-food-photo {
+  width: 100%;
+  height: 150px;
+  min-height: 150px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.internal-swap-list button > span {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.internal-swap-list b,
+.internal-swap-list small {
+  display: block;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+
+.internal-swap-list small {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.internal-swap-list button > svg {
+  width: 20px;
 }
 
 .internal-add-form {
